@@ -1,4 +1,5 @@
 const fs = require('fs');
+const path = require('path');
 
 console.log("install js api step")
 
@@ -6,8 +7,8 @@ var args = process.argv.slice(2);
 console.log("args:", args)
 console.log("__dirname:", __dirname);
 
-const HERE=__dirname
-const ROOT=HERE+"/../.."
+const HERE = __dirname
+const ROOT = path.resolve(HERE, "../../..")
 const OUTPUT_DIR = args.length > 0 ? args[0] : "./out"
 const MUSE_MODULE_AUDIO_WORKER = "OFF"
 
@@ -28,6 +29,32 @@ function configure(file, out) {
   var content = fs.readFileSync(file)
   content = replaceAll(content, "{{MUSE_MODULE_AUDIO_WORKER}}", MUSE_MODULE_AUDIO_WORKER);
   fs.writeFileSync(out, content);
+}
+
+function patchMuseScoreStudioJs(file) {
+  if (!fs.existsSync(file)) {
+    return;
+  }
+
+  const needle = "var __mktime_js=function(tmPtr){tmPtr>>>=0;var ret=(()=>{var date=new Date(";
+  const guard = "var __mktime_js=function(tmPtr){tmPtr>>>=0;var ret=(()=>{var date=new Date(";
+  const inserted = ",0);if(!Number.isFinite(date.getTime()))return-1;var dst=";
+  const original = ",0);var dst=";
+
+  let content = fs.readFileSync(file, "utf8");
+  if (!content.includes(needle) || !content.includes(original)) {
+    console.warn("warn: failed to locate __mktime_js patch point in " + file);
+    return;
+  }
+
+  if (content.includes(inserted)) {
+    console.info("success: __mktime_js already patched in " + file);
+    return;
+  }
+
+  content = content.replace(original, inserted);
+  fs.writeFileSync(file, content);
+  console.info("success: patched __mktime_js guard in " + file);
 }
 
 // Remove Unnecessary Qt files
@@ -55,11 +82,13 @@ copyFile(HERE+"/viewer/index.html", OUTPUT_DIR+"/MuseScoreStudio.html");
 // Copy tools
 copyFile(HERE+"/viewer/run_server.sh", OUTPUT_DIR+"/run_server.sh");
 
+// Patch generated Emscripten glue to tolerate musl timezone probes with out-of-range years.
+patchMuseScoreStudioJs(OUTPUT_DIR+"/MuseScoreStudio.js");
+
 // Copy SF if need
-const SF_SRC=ROOT+"/share/sound/MS Basic.sf3"
-const SF_DST=OUTPUT_DIR+"/sound/MS Basic.sf3";
+const SF_SRC = path.join(ROOT, "share", "sound", "MS Basic.sf3");
+const SF_DST = path.join(OUTPUT_DIR, "sound", "MS Basic.sf3");
 if (!fs.existsSync(SF_DST)) {
   fs.mkdirSync(OUTPUT_DIR+"/sound", { recursive: true });
   copyFile(SF_SRC, SF_DST);
 }
-

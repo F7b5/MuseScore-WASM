@@ -38,25 +38,27 @@ bool StartupScenario::isStartWithNewFileAsSecondaryInstance() const
 
 const mu::project::ProjectFile& StartupScenario::startupScoreFile() const
 {
-    static mu::project::ProjectFile file;
-    return file;
+    return m_startupScoreFile;
 }
 
-void StartupScenario::setStartupScoreFile(const std::optional<project::ProjectFile>& /*file*/)
+void StartupScenario::setStartupScoreFile(const std::optional<project::ProjectFile>& file)
 {
-    NOT_IMPLEMENTED;
+    m_startupScoreFile = file ? file.value() : project::ProjectFile();
 }
 
-muse::async::Promise<Ret> StartupScenario::runOnSplashScreen()
+void StartupScenario::runOnSplashScreen()
 {
-    return async::make_promise<Ret>([](auto resolve) {
-        return resolve(muse::make_ok());
-    });
 }
 
 void StartupScenario::runAfterSplashScreen()
 {
     interactive()->open("musescore://notation").onResolve(this, [this](const Val&) {
+        if (m_startupScoreFile.isValid()) {
+            dispatcher()->dispatch("file-open", muse::actions::ActionData::make_arg2<QUrl, QString>(
+                                       m_startupScoreFile.url, m_startupScoreFile.displayNameOverride));
+        } else {
+            dispatcher()->dispatch("file-new");
+        }
         m_startupCompleted = true;
     });
 }

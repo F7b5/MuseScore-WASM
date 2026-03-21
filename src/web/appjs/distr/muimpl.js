@@ -109,6 +109,9 @@ const MuImpl = {
                 onExit: opt.onExit,
                 entryFunction: window.MuseScoreStudio_entry, // from MuseScoreStudio.js
                 containerElements: [opt.screen],
+                environment: {
+                    TZ: "UTC"
+                }
             },
 
             soundFont: opt.soundFont,
@@ -130,6 +133,12 @@ const MuImpl = {
 
     _onStartApp: async function() {
         console.info("STEP 1: Begin on onStartApp")
+
+        if (config.MUSE_AUDIO_ENGINE !== "ON") {
+            console.info("STEP 1.1: Skip setupDriver (audio engine disabled)")
+            return;
+        }
+
         await setupDriver(this.Module);
         console.info("STEP 1.1: End setupDriver")
 
@@ -156,6 +165,11 @@ const MuImpl = {
     },
 
     startAudioProcessing: async function() {
+        if (!this.Module.driver) {
+            console.warn("audio driver is disabled")
+            return;
+        }
+
         if (this.Module.driver.inited) {
             this.Module._startAudioProcessing()
         } else {

@@ -25,11 +25,13 @@
 
 #include "global/modularity/ioc.h"
 #include "interactive/iinteractive.h"
+#include "actions/iactionsdispatcher.h"
 
 namespace mu::appshell {
 class StartupScenario : public IStartupScenario, public muse::Contextable, public muse::async::Asyncable
 {
     muse::ContextInject<muse::IInteractive> interactive = { this };
+    muse::ContextInject<muse::actions::IActionsDispatcher> dispatcher = { this };
 
 public:
     StartupScenario(const muse::modularity::ContextPtr& iocCtx)
@@ -42,12 +44,12 @@ public:
     const project::ProjectFile& startupScoreFile() const override;
     void setStartupScoreFile(const std::optional<project::ProjectFile>& file) override;
 
-    muse::async::Promise<muse::Ret> runOnSplashScreen() override;
+    void runOnSplashScreen() override;
     void runAfterSplashScreen() override;
     bool startupCompleted() const override;
 
 private:
-
+    project::ProjectFile m_startupScoreFile;
     bool m_startupCompleted = false;
 };
 }

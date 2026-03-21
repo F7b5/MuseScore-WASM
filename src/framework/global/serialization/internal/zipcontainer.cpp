@@ -215,7 +215,7 @@ enum {
 
 static std::tm readMSDosDate(const uint8_t* src)
 {
-    std::tm tm;
+    std::tm tm = {};
     uint dosDate = readUInt(src);
     uint64_t uDate;
     uDate = (uint64_t)(dosDate >> 16);
@@ -567,7 +567,7 @@ void ZipContainer::Impl::addEntry(EntryType type, const std::string& fileName, c
     writeUInt(header.h.uncompressed_size, (uint)contents.size());
 
     std::time_t t = std::time(0);   // get time now
-    std::tm now;
+    std::tm now = {};
 #ifdef WIN32
     localtime_s(&now, &t);
 #else

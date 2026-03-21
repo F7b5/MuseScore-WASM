@@ -1,6 +1,7 @@
 
 const config = {
-    MUSE_MODULE_AUDIO_WORKER: '{{MUSE_MODULE_AUDIO_WORKER}}'
+    MUSE_MODULE_AUDIO_WORKER: '{{MUSE_MODULE_AUDIO_WORKER}}',
+    MUSE_AUDIO_ENGINE: 'OFF'
 };
 
 export default config;

@@ -1,5 +1,7 @@
 #include "guiapp.h"
 
+#include <typeinfo>
+
 #include <QApplication>
 #include <QDir>
 #include <QQmlApplicationEngine>
@@ -193,6 +195,14 @@ void GuiApp::setup()
     {
         GraphicsApiProvider* gApiProvider = new GraphicsApiProvider(BaseApplication::appVersion());
 
+#ifdef Q_OS_WASM
+        const GraphicsApi required = GraphicsApi::Software;
+        LOGI() << "Setting required graphics api: " << GraphicsApiProvider::apiName(required);
+        GraphicsApiProvider::setGraphicsApi(required);
+        LOGI() << "Using graphics api: " << GraphicsApiProvider::graphicsApiName();
+        LOGI() << "Gui platform: " << QGuiApplication::platformName();
+        gApiProvider->destroy();
+#else
         GraphicsApi required = gApiProvider->requiredGraphicsApi();
         if (required != GraphicsApi::Default) {
             LOGI() << "Setting required graphics api: " << GraphicsApiProvider::apiName(required);
@@ -220,6 +230,7 @@ void GuiApp::setup()
                 gApiProvider->destroy();
             });
         }
+#endif
     }
 }
 
@@ -292,22 +303,27 @@ muse::modularity::ContextPtr GuiApp::setupNewContext(const StringList& args)
     std::vector<muse::modularity::IContextSetup*>& csetups = context(ctxId).setups;
 
     for (modularity::IContextSetup* s : csetups) {
+        LOGI() << "Context setup registerExports:" << typeid(*s).name();
         s->registerExports();
     }
 
     for (modularity::IContextSetup* s : csetups) {
+        LOGI() << "Context setup resolveImports:" << typeid(*s).name();
         s->resolveImports();
     }
 
     for (modularity::IContextSetup* s : csetups) {
+        LOGI() << "Context setup onPreInit:" << typeid(*s).name();
         s->onPreInit(runMode);
     }
 
     for (modularity::IContextSetup* s : csetups) {
+        LOGI() << "Context setup onInit:" << typeid(*s).name();
         s->onInit(runMode);
     }
 
     for (modularity::IContextSetup* s : csetups) {
+        LOGI() << "Context setup onAllInited:" << typeid(*s).name();
         s->onAllInited(runMode);
     }
 

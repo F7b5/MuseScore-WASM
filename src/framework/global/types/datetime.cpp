@@ -69,6 +69,17 @@ static void toTM(std::tm& tm, const DateTime& dt)
     toTM(tm, dt.time());
 }
 
+static int64_t daysFromCivil(int year, unsigned month, unsigned day)
+{
+    year -= month <= 2;
+    const int era = (year >= 0 ? year : year - 399) / 400;
+    const unsigned yoe = static_cast<unsigned>(year - era * 400);
+    const unsigned doy = (153 * (month + (month > 2 ? -3 : 9)) + 2) / 5 + day - 1;
+    const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+
+    return era * 146097 + static_cast<int>(doe) - 719468;
+}
+
 static String formatTime(const Time& t, const char* fmt)
 {
     std::tm tm = {};
@@ -136,19 +147,10 @@ int64_t Date::daysTo(const Date& d) const
         return 0;
     }
 
-    std::tm meTM = {};
-    toTM(meTM, *this);
+    const int64_t thisDays = daysFromCivil(year(), static_cast<unsigned>(month()), static_cast<unsigned>(day()));
+    const int64_t otherDays = daysFromCivil(d.year(), static_cast<unsigned>(d.month()), static_cast<unsigned>(d.day()));
 
-    std::tm otherTM = {};
-    toTM(otherTM, d);
-
-    std::time_t meTime = std::mktime(&meTM);
-    std::time_t otherTime = std::mktime(&otherTM);
-    if (meTime != (std::time_t)(-1) && otherTime != (std::time_t)(-1)) {
-        double difference = std::difftime(otherTime, meTime) / (60 * 60 * 24);
-        return difference;
-    }
-    return 0;
+    return otherDays - thisDays;
 }
 
 Date Date::currentDate()
@@ -157,7 +159,7 @@ Date Date::currentDate()
     milliseconds ms_d = duration_cast< milliseconds >(system_clock::now().time_since_epoch());
 
     std::time_t sec = static_cast<std::time_t>(ms_d.count() / 1000);
-    std::tm tm;
+    std::tm tm = {};
 #ifdef WIN32
     bool err = localtime_s(&tm, &sec) != 0;
 #else
@@ -217,7 +219,7 @@ Time Time::currentTime()
     milliseconds ms_d = duration_cast< milliseconds >(system_clock::now().time_since_epoch());
 
     std::time_t sec = static_cast<std::time_t>(ms_d.count() / 1000);
-    std::tm tm;
+    std::tm tm = {};
 #ifdef WIN32
     bool err = localtime_s(&tm, &sec) != 0;
 #else
@@ -271,7 +273,7 @@ DateTime DateTime::currentDateTime()
     milliseconds ms_d = duration_cast< milliseconds >(system_clock::now().time_since_epoch());
 
     std::time_t sec = static_cast<std::time_t>(ms_d.count() / 1000);
-    std::tm tm;
+    std::tm tm = {};
 #ifdef WIN32
     bool err = localtime_s(&tm, &sec) != 0;
 #else
