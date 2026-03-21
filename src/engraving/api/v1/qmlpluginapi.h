@@ -54,7 +54,9 @@ namespace mu::engraving::apiv1 {
 class EngravingItem;
 class Fraction;
 class OrnamentIntervalWrapper;
+#ifndef Q_OS_WASM
 class MsProcess;
+#endif
 class Score;
 
 #define DECLARE_API_ENUM(qmlName, cppName, enumName) \
@@ -532,7 +534,9 @@ public:
     Q_INVOKABLE void removeElement(apiv1::EngravingItem* wrapped);
     Q_INVOKABLE void cmd(const QString&);
     /// \cond PLUGIN_API \private \endcond
+#ifndef Q_OS_WASM
     Q_INVOKABLE apiv1::MsProcess* newQProcess();
+#endif
     Q_INVOKABLE bool writeScore(apiv1::Score*, const QString& name, const QString& ext);
     Q_INVOKABLE apiv1::Score* readScore(const QString& name, bool noninteractive = false);
     Q_INVOKABLE void closeScore(apiv1::Score* score);

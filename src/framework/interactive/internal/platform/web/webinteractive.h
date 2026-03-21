@@ -111,6 +111,10 @@ public:
 
     muse::Ret revealInFileBrowser(const muse::io::path_t& filePath) const override;
 
+    muse::async::Notification currentUriAboutToBeChanged() const override;
+    QWindow* topWindow() const override;
+    bool topWindowIsWidget() const override;
+
 private:
 
     std::shared_ptr<muse::IInteractive> m_origin = nullptr;

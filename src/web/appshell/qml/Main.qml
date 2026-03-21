@@ -21,13 +21,12 @@
  */
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Layouts
 
 import Muse.Ui 1.0
+import Muse.Interactive
 import Muse.UiComponents
 
 import MuseScore.AppShell 1.0
-import MuseScore.Playback 1.0
 
 AppWindow {
     id: root
@@ -43,56 +42,7 @@ AppWindow {
         }
     }
 
-    AppMenuBar {
-        id: appMenuBar
-        anchors.top: parent.top
-        anchors.left: parent.left
-        anchors.right: parent.right
-    }
-
-    Item {
-        id: contentItem
-        anchors.top: appMenuBar.bottom
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-
-        StyledTabBar {
-            id: bar
-            anchors.left: parent.left
-            anchors.margins: 16
-            width: 300
-
-            StyledTabButton {
-                text: "Notation"
-            }
-            StyledTabButton {
-                text: "Dev"
-            }
-        }
-
-        PlaybackToolBar {
-            anchors.left: bar.right
-            anchors.right: parent.right
-            anchors.leftMargin: 16
-        }
-
-        StackLayout {
-            anchors.top: bar.bottom
-            anchors.topMargin: 8
-            anchors.bottom: parent.bottom
-            anchors.left: parent.left
-            anchors.right: parent.right
-            currentIndex: bar.currentIndex
-
-            NotationFrame {
-
-            }
-
-            DevFrame {
-
-            }
-
-        }
+    NotationFrame {
+        anchors.fill: parent
     }
 }

@@ -24,10 +24,6 @@
 using namespace muse;
 using namespace mu::appshell;
 
-static const std::string module_name("appshell");
-
-static const QString NOTATION_NAVIGATOR_VISIBLE_KEY("showNavigator");
-
 void AppShellConfiguration::init()
 {
 }
@@ -44,15 +40,15 @@ std::string AppShellConfiguration::museScoreRevision() const
 
 bool AppShellConfiguration::isNotationNavigatorVisible() const
 {
-    return uiConfiguration()->isVisible(NOTATION_NAVIGATOR_VISIBLE_KEY, false);
+    return false;
 }
 
-void AppShellConfiguration::setIsNotationNavigatorVisible(bool visible) const
+void AppShellConfiguration::setIsNotationNavigatorVisible(bool) const
 {
-    uiConfiguration()->setIsVisible(NOTATION_NAVIGATOR_VISIBLE_KEY, visible);
 }
 
 muse::async::Notification AppShellConfiguration::isNotationNavigatorVisibleChanged() const
 {
-    return uiConfiguration()->isVisibleChanged(NOTATION_NAVIGATOR_VISIBLE_KEY);
+    static async::Notification n;
+    return n;
 }

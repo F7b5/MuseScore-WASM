@@ -25,7 +25,9 @@
 #include <QWindow>
 #include <QKeyEvent>
 
+#ifndef Q_OS_WASM
 #include <private/qkeymapper_p.h>
+#endif
 
 #include "log.h"
 
@@ -49,20 +51,30 @@ QSet<int> convertToSet(QList<QKeyCombination> keys)
 
 QSet<int> possibleKeys(QKeyEvent* keyEvent)
 {
+#ifndef Q_OS_WASM
     QKeyEvent* correctedKeyEvent = keyEvent;
     //! NOTE: correct work only with alt modifier
     correctedKeyEvent->setModifiers(Qt::AltModifier);
 
     auto keys = QKeyMapper::possibleKeys(correctedKeyEvent);
     return convertToSet(keys);
+#else
+    Q_UNUSED(keyEvent);
+    return {};
+#endif
 }
 
 QSet<int> possibleKeys(const QChar& keySymbol)
 {
+#ifndef Q_OS_WASM
     QKeyEvent fakeKey(QKeyEvent::KeyRelease, Qt::Key_unknown, Qt::AltModifier, keySymbol);
     auto keys = QKeyMapper::possibleKeys(&fakeKey);
 
     return convertToSet(keys);
+#else
+    Q_UNUSED(keySymbol);
+    return {};
+#endif
 }
 
 NavigableAppMenuModel::NavigableAppMenuModel(QObject* parent)

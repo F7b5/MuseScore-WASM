@@ -23,7 +23,9 @@
 #pragma once
 
 #include <QDir>
+#ifndef Q_OS_WASM
 #include <QProcess>
+#endif
 
 #include "global/modularity/ioc.h"
 #include "global/iglobalconfiguration.h"
@@ -153,6 +155,7 @@ private:
     QString m_source;
 };
 
+#ifndef Q_OS_WASM
 //---------------------------------------------------------
 //   MsProcess
 //   @@ QProcess
@@ -185,4 +188,5 @@ public slots:
     /// --
     Q_INVOKABLE QByteArray readAllStandardOutput() { return QProcess::readAllStandardOutput(); }
 };
+#endif // Q_OS_WASM
 }

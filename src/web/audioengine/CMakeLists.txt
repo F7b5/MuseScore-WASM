@@ -66,8 +66,6 @@ add_subdirectory(${AUDIO_ROOT}/common common)
 set(WEBWORKER_FACADE_MODE OFF)
 add_subdirectory(${AUDIO_ROOT}/engine engine)
 
-target_link_libraries(MuseAudio PRIVATE muse_audio_common muse_audio_engine)
-
 add_executable(MuseAudio
     ${CMAKE_CURRENT_LIST_DIR}/engine_export.cpp
     ${CMAKE_CURRENT_LIST_DIR}/webaudioengine.cpp
@@ -105,6 +103,8 @@ configure_file(${MU_ROOT}/src/framework/cmake/muse_framework_config.h.in muse_fr
 add_subdirectory(${MU_ROOT}/src/framework/global global)
 
 target_link_libraries(MuseAudio PRIVATE
+    muse_audio_common
+    muse_audio_engine
     embind
     muse::global
 )

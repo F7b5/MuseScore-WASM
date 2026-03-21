@@ -351,6 +351,7 @@ int FileIO::modifiedTime()
     return fileInfo.lastModified().toSecsSinceEpoch();
 }
 
+#ifndef Q_OS_WASM
 void MsProcess::start(const QString& command)
 {
     QT_WARNING_PUSH;
@@ -364,4 +365,5 @@ void MsProcess::startWithArgs(const QString& program, const QStringList& args)
 {
     QProcess::start(program, args, ReadWrite);
 }
+#endif // Q_OS_WASM
 }

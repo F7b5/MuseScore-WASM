@@ -69,13 +69,17 @@ void AudioModule::registerExports()
     globalIoc()->registerExport<IAudioConfiguration>(mname, m_configuration);
     globalIoc()->registerExport<IAudioThreadSecurer>(mname, std::make_shared<AudioThreadSecurer>());
 
+#ifndef Q_OS_WASM
     m_engineGlobalSetup = std::make_shared<engine::EngineGlobalSetup>();
     m_engineGlobalSetup->registerExports();
+#endif
 }
 
 void AudioModule::resolveImports()
 {
+#ifndef Q_OS_WASM
     m_engineGlobalSetup->resolveImports();
+#endif
 }
 
 void AudioModule::onInit(const IApplication::RunMode& mode)
@@ -98,7 +102,9 @@ void AudioModule::onInit(const IApplication::RunMode& mode)
 
 void AudioModule::onDeinit()
 {
+#ifndef Q_OS_WASM
     m_engineGlobalSetup->onDeinit();
+#endif
 }
 
 modularity::IContextSetup* AudioModule::newContext(const muse::modularity::ContextPtr& ctx) const
@@ -121,7 +127,7 @@ void AudioContext::registerExports()
 #endif
 
 #ifdef Q_OS_WASM
-    m_soundFontController = std::make_shared<WebSoundFontController>();
+    m_soundFontController = std::make_shared<WebSoundFontController>(iocContext());
 #else
     m_soundFontController = std::make_shared<GeneralSoundFontController>(iocContext());
 #endif

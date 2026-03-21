@@ -59,13 +59,11 @@ WebApi* WebApi::instance()
     return &a;
 }
 
-void WebApi::init()
+void WebApi::init(const muse::modularity::ContextPtr& iocCtx)
 {
-    auto onProjectChanged = [this]() {
-        if (m_currentProject) {
-            m_currentProject->saveComplited().resetOnReceive(this);
-        }
+    setContext(iocCtx);
 
+    auto onProjectChanged = [this]() {
         m_currentProject = globalContext()->currentProject();
 
         if (m_currentProject) {
@@ -82,9 +80,6 @@ void WebApi::init()
 
 void WebApi::deinit()
 {
-    if (m_currentProject) {
-        m_currentProject->saveComplited().resetOnReceive(this);
-    }
 }
 
 void WebApi::load(const void* source, unsigned int len)

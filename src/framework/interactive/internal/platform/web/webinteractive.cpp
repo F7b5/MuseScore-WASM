@@ -353,3 +353,18 @@ Ret WebInteractive::revealInFileBrowser(const io::path_t& filePath) const
 {
     return m_origin->revealInFileBrowser(filePath);
 }
+
+async::Notification WebInteractive::currentUriAboutToBeChanged() const
+{
+    return m_origin->currentUriAboutToBeChanged();
+}
+
+QWindow* WebInteractive::topWindow() const
+{
+    return m_origin->topWindow();
+}
+
+bool WebInteractive::topWindowIsWidget() const
+{
+    return m_origin->topWindowIsWidget();
+}

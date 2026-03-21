@@ -31,6 +31,7 @@ namespace mu::appshell {
 class ApplicationActionController;
 class ApplicationUiActions;
 class AppShellConfiguration;
+
 class AppShellModule : public muse::modularity::IModuleSetup
 {
 public:
@@ -48,10 +49,24 @@ public:
     void onAllInited(const muse::IApplication::RunMode& mode) override;
     void onDeinit() override;
 
+    muse::modularity::IContextSetup* newContext(const muse::modularity::ContextPtr& ctx) const override;
+
+private:
+    std::shared_ptr<AppShellConfiguration> m_appShellConfiguration;
+};
+
+class AppShellContext : public muse::modularity::IContextSetup
+{
+public:
+    AppShellContext(const muse::modularity::ContextPtr& ctx);
+
+    void registerExports() override;
+    void resolveImports() override;
+    void onInit(const muse::IApplication::RunMode& mode) override;
+
 private:
     std::shared_ptr<ApplicationActionController> m_applicationActionController;
     std::shared_ptr<ApplicationUiActions> m_applicationUiActions;
-    std::shared_ptr<AppShellConfiguration> m_appShellConfiguration;
 };
 }
 
