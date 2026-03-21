@@ -71,7 +71,7 @@ static void toTM(std::tm& tm, const DateTime& dt)
 
 static String formatTime(const Time& t, const char* fmt)
 {
-    std::tm tm;
+    std::tm tm = {};
     toTM(tm, t);
 
     char mbstr[100];
@@ -82,7 +82,7 @@ static String formatTime(const Time& t, const char* fmt)
 
 static String formatDate(const Date& d, const char* fmt)
 {
-    std::tm tm;
+    std::tm tm = {};
     toTM(tm, d);
 
     char mbstr[100];
@@ -93,7 +93,7 @@ static String formatDate(const Date& d, const char* fmt)
 
 static String formatDateTime(const DateTime& dt, const char* fmt)
 {
-    std::tm tm;
+    std::tm tm = {};
     toTM(tm, dt);
 
     char mbstr[100];

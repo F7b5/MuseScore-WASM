@@ -302,7 +302,7 @@ if (CC_IS_EMCC)
     include(exported_functions.cmake)
     target_link_options(MuseScoreStudio PRIVATE ${EMCC_LINKER_FLAGS})
     target_link_options(MuseScoreStudio PRIVATE ${EXPORTED_FUNCTIONS})
-    target_link_options(MuseScoreStudio PRIVATE "SHELL:-s ASSERTIONS=2")
+    target_link_options(MuseScoreStudio PRIVATE "SHELL:-s ASSERTIONS=1")
 endif()
 
 
