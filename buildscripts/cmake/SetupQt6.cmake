@@ -82,7 +82,7 @@ if(QT_ADD_WEBSOCKET)
 endif()
 
 if (OS_IS_WASM)
-    set(QT_WASM_EXTRA_EXPORTED_METHODS "ccall,ENV")
+    set(QT_WASM_EXTRA_EXPORTED_METHODS "ccall,ENV,HEAPU8")
 endif()
 
 find_package(Qt6 6.8 REQUIRED COMPONENTS ${qt_components})

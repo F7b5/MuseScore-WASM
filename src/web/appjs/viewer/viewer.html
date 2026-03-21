@@ -17,6 +17,57 @@ SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
     <title>MuseScoreStudio</title>
     <style>
       html, body { padding: 0; margin: 0; overflow: hidden; height: 100% }
+      body {
+        font-family: sans-serif;
+        background: #eef1f6;
+      }
+      #launcher {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        padding: 24px;
+        box-sizing: border-box;
+      }
+      #launcherCard {
+        width: min(520px, 100%);
+        padding: 24px;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.95);
+        box-shadow: 0 18px 48px rgba(24, 39, 75, 0.14);
+      }
+      #launcherCard h1 {
+        margin: 0 0 8px 0;
+        font-size: 28px;
+      }
+      #launcherCard p {
+        margin: 0 0 16px 0;
+        color: #475467;
+      }
+      #filePicker {
+        display: block;
+        width: 100%;
+        margin-bottom: 12px;
+      }
+      #selectedFileName {
+        min-height: 20px;
+        margin-bottom: 16px;
+        color: #344054;
+        font-size: 14px;
+      }
+      #launchButton {
+        border: 0;
+        border-radius: 10px;
+        background: #2563eb;
+        color: #fff;
+        padding: 12px 18px;
+        font-size: 15px;
+        cursor: pointer;
+      }
+      #launchButton:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
       #spinner {
         display: flex;
         justify-content: center; /* горизонтальное выравнивание */
@@ -44,6 +95,15 @@ SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
     </style>
   </head>
   <body>
+    <div id="launcher">
+      <div id="launcherCard">
+        <h1>MuseScoreStudio</h1>
+        <p>Choose a score file first, then start the WASM app with that file.</p>
+        <input id="filePicker" type="file" accept=".mscz,.mscx,.musicxml,.xml,.mid,.midi">
+        <div id="selectedFileName">No file selected</div>
+        <button id="launchButton" disabled>Load WASM App</button>
+      </div>
+    </div>
 
     <figure id="spinner">
       <center style="margin-top:1.5em; line-height:150%">
@@ -65,47 +125,67 @@ SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
     <script type="module">
       import createMuApi from "./distr/muapi.js";
 
+      const launcher = document.querySelector('#launcher');
+      const filePicker = document.querySelector('#filePicker');
+      const selectedFileName = document.querySelector('#selectedFileName');
+      const launchButton = document.querySelector('#launchButton');
       const spinner = document.querySelector('#spinner');
       const screen = document.querySelector('#screen');
       const status = document.querySelector('#status');
+      let selectedFile = null;
+      let isLaunching = false;
 
       const showUi = (ui) => {
-          [spinner, screen].forEach(element => element.style.display = 'none');
+          [launcher, spinner, screen].forEach(element => element.style.display = 'none');
           if (screen === ui)
               screen.style.position = 'default';
           ui.style.display = 'block';
       }
 
-      try {
-      
-        showUi(spinner);
-        status.innerHTML = 'Loading...';
+      filePicker.addEventListener('change', () => {
+        selectedFile = filePicker.files[0] || null;
+        selectedFileName.textContent = selectedFile ? `Selected: ${selectedFile.name}` : 'No file selected';
+        launchButton.disabled = !selectedFile || isLaunching;
+      });
 
-        window.muapi = await createMuApi({
+      launchButton.addEventListener('click', async () => {
+        if (!selectedFile || isLaunching) {
+          return;
+        }
 
-          // properties
-          screen: screen,
+        try {
+          isLaunching = true;
+          launchButton.disabled = true;
+          showUi(spinner);
+          status.innerHTML = 'Loading...';
 
-          // runtime
-          onLoaded: () => showUi(screen),
-          onExit: function(exitData) {
-            status.innerHTML = 'Application exit';
-            status.innerHTML += exitData.code !== undefined ? ` with code ${exitData.code}` : '';
-            status.innerHTML += exitData.text !== undefined ? ` (${exitData.text})` : '';
-            showUi(spinner);
-          },
+          window.muapi = await createMuApi({
+            screen: screen,
+            onLoaded: () => {
+              showUi(screen);
+            },
+            onExit: function(exitData) {
+              status.innerHTML = 'Application exit';
+              status.innerHTML += exitData.code !== undefined ? ` with code ${exitData.code}` : '';
+              status.innerHTML += exitData.text !== undefined ? ` (${exitData.text})` : '';
+              showUi(spinner);
+            },
+            onProjectSaved: function(data) {
+              console.log("[html] onProjectSaved len: ", data.length)
+            }
+          });
 
-          // api callbacks
-          onProjectSaved: function(data) {
-            console.log("[html] onProjectSaved len: ", data.length)
-          }   
-        })
-
-        document.addEventListener('click', window.muapi.startAudioProcessing, { once: true });
-    } catch (e) {
-        console.error(e);
-        console.error(e.stack);
-    }
+          await window.muapi.loadScoreFile(selectedFile);
+          document.addEventListener('click', window.muapi.startAudioProcessing, { once: true });
+        } catch (e) {
+          isLaunching = false;
+          launchButton.disabled = !selectedFile;
+          console.error(e);
+          console.error(e.stack);
+          selectedFileName.textContent = `Failed to start: ${e.message || e}`;
+          showUi(launcher);
+        }
+      });
     </script>
     <script src="MuseScoreStudio.js"></script> 
   </body>
