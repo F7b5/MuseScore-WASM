@@ -76,6 +76,8 @@ QHash<int, QByteArray> AbstractMenuModel::roleNames() const
 void AbstractMenuModel::handleMenuItem(const QString& itemId)
 {
     MenuItem& menuItem = findItem(itemId);
+    LOGI() << "AbstractMenuModel::handleMenuItem itemId:" << itemId
+           << "action:" << menuItem.action().code;
 
     if (menuItem.query().isValid()) {
         dispatch(menuItem.query());

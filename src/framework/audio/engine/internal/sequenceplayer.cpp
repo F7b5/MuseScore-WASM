@@ -57,9 +57,11 @@ SequencePlayer::SequencePlayer(IGetTracks* getTracks, IClockPtr clock, const mod
 async::Promise<Ret> SequencePlayer::prepareToPlay()
 {
     ONLY_AUDIO_ENGINE_THREAD;
+    LOGI() << "SequencePlayer::prepareToPlay";
 
     return async::make_promise<Ret>([this](auto resolve, auto) {
         prepareAllTracksToPlay([resolve]() {
+            LOGI() << "SequencePlayer::prepareToPlay all tracks ready";
             (void)resolve(make_ok());
         });
 
@@ -70,6 +72,7 @@ async::Promise<Ret> SequencePlayer::prepareToPlay()
 void SequencePlayer::play(const secs_t delay)
 {
     ONLY_AUDIO_ENGINE_THREAD;
+    LOGI() << "SequencePlayer::play delay:" << delay;
 
     m_clock->setCountDown(secsToMicrosecs(delay));
     m_countDownIsSet = !delay.is_zero();

@@ -71,7 +71,9 @@ let AudioDriver = (function () {
         outputSpec: function() {
             return {
                 sampleRate: audioContext.sampleRate,
-                samplesPerChannel: Math.max(Math.round(audioContext.baseLatency * audioContext.sampleRate), 128),
+                // AudioWorklet render quanta are fixed-size blocks. The engine
+                // must be initialized with the same block size it will be asked to render.
+                samplesPerChannel: 128,
                 audioChannelCount: audioContext.destination.channelCount
             }
         },

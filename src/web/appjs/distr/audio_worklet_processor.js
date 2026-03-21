@@ -71,11 +71,13 @@ class MuseDriverProcessor extends AudioWorkletProcessor {
             // main <=> worker
             MuseAudio.mainPort = data.rpcPort;
             MuseAudio.main_worker_rpcSend = function(data) {
+                debugLog({type: "debug", msg: "[rpc engine->main] " + (data?.length ?? data?.byteLength ?? "unknown")});
                 MuseAudio.mainPort.postMessage(data)
             }
 
             MuseAudio.main_worker_rpcListen = function(data) {} // will be overridden
             MuseAudio.mainPort.onmessage = function(event) {
+                debugLog({type: "debug", msg: "[rpc main->engine] " + (event?.data?.length ?? event?.data?.byteLength ?? "unknown")});
                 MuseAudio.main_worker_rpcListen(event.data)
             }
 
@@ -163,6 +165,15 @@ class MuseDriverProcessor extends AudioWorkletProcessor {
             MuseAudio._process(this.wasmBuffer.ptr, samplesPerCh);
 
             const view = new Float32Array(MuseAudio.HEAPU8.buffer, this.wasmBuffer.ptr, totalSamples);
+            if (!this.loggedNonZeroAudio) {
+                for (let i = 0; i < view.length; ++i) {
+                    if (view[i] !== 0) {
+                        this.loggedNonZeroAudio = true;
+                        this.debugLog("non-zero audio detected");
+                        break;
+                    }
+                }
+            }
 
             for (let ci = 0; ci < output.length; ++ci) {
                 let channel = output[ci];

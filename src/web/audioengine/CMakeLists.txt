@@ -24,6 +24,8 @@ project(MuseAudio LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(MUSE_MODULE_AUDIO_WORKER "Enable audio worker" OFF)
 option(MUSE_FIX_MUSEAUDIO_FILENAME "Fix MuseAudio.js file name" OFF)
@@ -45,6 +47,45 @@ set(CMAKE_MODULE_PATH
     ${CMAKE_MODULE_PATH}
     )
 
+set(PARENT_BUILD_CACHE ${MU_ROOT}/build.release/CMakeCache.txt)
+if (EXISTS ${PARENT_BUILD_CACHE})
+    file(STRINGS ${PARENT_BUILD_CACHE} PARENT_QT_CACHE_LINES REGEX "^(QT_HOST_PATH(|_CMAKE_DIR)|Qt6[^:]*_DIR):PATH=")
+    foreach(PARENT_QT_CACHE_LINE IN LISTS PARENT_QT_CACHE_LINES)
+        string(REGEX REPLACE "^([^:]+):PATH=(.*)$" "\\1;\\2" PARENT_QT_CACHE_ENTRY ${PARENT_QT_CACHE_LINE})
+        list(LENGTH PARENT_QT_CACHE_ENTRY PARENT_QT_CACHE_ENTRY_LEN)
+        if (PARENT_QT_CACHE_ENTRY_LEN EQUAL 2)
+            list(GET PARENT_QT_CACHE_ENTRY 0 PARENT_QT_CACHE_KEY)
+            list(GET PARENT_QT_CACHE_ENTRY 1 PARENT_QT_CACHE_VALUE)
+            if ((NOT DEFINED ${PARENT_QT_CACHE_KEY}) OR ("${${PARENT_QT_CACHE_KEY}}" STREQUAL "") OR ("${${PARENT_QT_CACHE_KEY}}" MATCHES "-NOTFOUND$"))
+                set(${PARENT_QT_CACHE_KEY} ${PARENT_QT_CACHE_VALUE} CACHE PATH "Inherited from parent WASM build cache" FORCE)
+            endif()
+        endif()
+    endforeach()
+endif()
+
+include(GetPlatformInfo)
+include(${MUSE_FRAMEWORK_SRC_PATH}/cmake/MuseDeclareOptions.cmake)
+
+set(MUSESCORE_BUILD_CONFIGURATION "app-web" CACHE STRING "Build configuration")
+set(MUSE_APP_BUILD_MODE "dev" CACHE STRING "Build mode")
+
+set(QT_ADD_LINGUISTTOOLS OFF)
+set(QT_ADD_CONCURRENT OFF)
+set(QT_ADD_WEBSOCKET OFF)
+set(QT_QPROCESS_SUPPORTED OFF)
+set(QT_CONCURRENT_SUPPORTED OFF)
+set(QT_NO_PRIVATE_MODULE_WARNING ON)
+
+set(MUSE_QT_SUPPORT ON)
+set(MUSE_CONFIGURATION_IS_WEB ON)
+set(MUSE_THREADS_SUPPORT OFF)
+set(MUSE_MODULE_AUDIO_EXPORT OFF)
+set(MUSE_ENABLE_UNIT_TESTS OFF)
+set(MUSE_MODULE_GLOBAL_TESTS OFF)
+set(MUSE_COMPILE_USE_PCH OFF)
+
+include(SetupBuildEnvironment)
+include(SetupQt6)
 
 include(MuseCreateModule)
 include(SetupCompileWarnings)
@@ -94,7 +135,6 @@ target_include_directories(MuseAudio PRIVATE
     # end compat
 )
 
-add_definitions(-DNO_QT_SUPPORT)
 add_definitions(-DQ_OS_WASM)
 set(GLOBAL_NO_INTERNAL ON)
 
@@ -117,7 +157,7 @@ target_link_options(MuseAudio PRIVATE "SHELL:-s MODULARIZE=1")
 target_link_options(MuseAudio PRIVATE "SHELL:-s FETCH=1")
 target_link_options(MuseAudio PRIVATE "SHELL:-s INITIAL_MEMORY=50MB")
 target_link_options(MuseAudio PRIVATE "SHELL:-s ALLOW_MEMORY_GROWTH=1")
-target_link_options(MuseAudio PRIVATE "SHELL:-s EXPORTED_RUNTIME_METHODS=ccall,cwrap")
+target_link_options(MuseAudio PRIVATE "SHELL:-s EXPORTED_RUNTIME_METHODS=ccall,cwrap,HEAPU8")
 target_link_options(MuseAudio PRIVATE "SHELL:-s EXPORTED_FUNCTIONS=[_main,_malloc,_free,_Init,_process]")
 
 if (MUSE_MODULE_AUDIO_WORKER)
@@ -133,8 +173,8 @@ endif()
 if (MUSE_FIX_MUSEAUDIO_FILENAME)
     add_custom_command(
         TARGET MuseAudio POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E rename
-                "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/MuseAudio"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:MuseAudio>"
                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/MuseAudio.js"
         COMMENT "Fix output js file name"
     )

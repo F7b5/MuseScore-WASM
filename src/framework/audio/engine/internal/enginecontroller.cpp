@@ -79,6 +79,10 @@ void EngineController::onStartRunning()
 void EngineController::init(const OutputSpec& outputSpec, const AudioEngineConfig& conf)
 {
     //! AUDIO THREAD
+    LOGI() << "EngineController::init"
+           << " sampleRate:" << outputSpec.sampleRate
+           << " samplesPerChannel:" << outputSpec.samplesPerChannel
+           << " channels:" << outputSpec.audioChannelCount;
 
     //! NOTE These services are global, but EngineController is contextual...
     //! There are currently design issues, we need to figure out how to fix them.

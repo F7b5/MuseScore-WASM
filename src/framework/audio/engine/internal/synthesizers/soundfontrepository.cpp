@@ -148,7 +148,7 @@ void SoundFontRepository::doAddSoundFont(const SoundFontUri& uri, const SoundFon
     } else {
 #ifdef Q_OS_WASM
         auto promise = NetworkSFLoader::load(uri);
-        promise.onResolve(this, [uri, parseAndAdd](const RetVal<ByteArray>& data) {
+        promise.onResolve(nullptr, [uri, parseAndAdd](const RetVal<ByteArray>& data) {
             if (data.ret) {
                 const io::path_t fileName = fileNameFromUri(uri);
 

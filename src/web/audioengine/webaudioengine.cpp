@@ -23,10 +23,12 @@
 
 #include "global/modularity/ioc.h"
 
+#include "global/async/processevents.h"
 #include "global/runtime.h"
 
 #include "audio/common/rpc/platform/web/webrpcchannel.h"
 
+#include "audio/engine/enginesetup.h"
 #include "audio/engine/internal/enginecontroller.h"
 
 #include "log.h"
@@ -46,11 +48,6 @@ WebAudioEngine* WebAudioEngine::instance()
 static std::string moduleName()
 {
     return "audio_engine";
-}
-
-static modularity::ModulesIoC* ioc()
-{
-    return modularity::globalIoc();
 }
 
 void WebAudioEngine::init()
@@ -77,12 +74,19 @@ void WebAudioEngine::init()
     }
 
     rpc::set_last_stream_id(100000);
+
+    m_globalSetup = std::make_shared<EngineGlobalSetup>();
+    m_globalSetup->registerExports();
+    m_globalSetup->resolveImports();
+
     m_rpcChannel = std::make_shared<WebRpcChannel>();
     m_rpcChannel->setupOnEngine();
-    ioc()->registerExport<IRpcChannel>(moduleName(), m_rpcChannel);
+    modularity::globalIoc()->registerExport<IRpcChannel>(moduleName(), m_rpcChannel);
 
-    m_controller = std::make_shared<EngineController>(m_rpcChannel);
-    m_controller->registerExports();
+    m_contextSetup = std::make_shared<EngineContextSetup>(modularity::globalCtx());
+    m_contextSetup->registerExports();
+
+    m_controller = std::make_shared<EngineController>(m_rpcChannel, modularity::globalCtx());
     m_controller->onStartRunning();
 
     LOGI() << "Web audio engine running";
@@ -90,5 +94,14 @@ void WebAudioEngine::init()
 
 void WebAudioEngine::process(float* stream, unsigned samplesPerChannel)
 {
+    static const std::thread::id thisThId = std::this_thread::get_id();
+
+    // Match the native audio worker paths: async callbacks and timers used by
+    // playback preparation need to be pumped from the audio engine thread.
+    async::processMessages(thisThId);
+
+    // In the direct worklet path, engine control messages arrive over the same
+    // RPC channel and must be pumped from the render callback before audio can start.
+    m_rpcChannel->process();
     m_controller->process(stream, samplesPerChannel);
 }
