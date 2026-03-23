@@ -38,4 +38,7 @@ void addSoundFont(const char* uri)
 
 EMSCRIPTEN_KEEPALIVE
 void startAudioProcessing() { WebApi::instance()->startAudioProcessing(); }
+
+EMSCRIPTEN_KEEPALIVE
+void serializeAsXml() { WebApi::instance()->serializeAsXml(); }
 }

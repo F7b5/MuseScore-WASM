@@ -10,6 +10,13 @@ const MuApi = {
 
     // Start audio
     startAudioProcessing: MuImpl.startAudioProcessing.bind(MuImpl),
+
+    // Serialize current project as .mscs XML — calls onProjectSerialized callback
+    serializeAsXml: function() {
+        if (MuApi.Module) {
+            MuApi.Module._serializeAsXml();
+        }
+    },
 }
 
 async function createMuApi(config) {
@@ -25,6 +32,18 @@ async function createMuApi(config) {
         console.log("[js muapi internal] onProjectSaved len: ", data.length)
         if (config.onProjectSaved) {
             config.onProjectSaved(data)
+        }
+    }
+
+    MuApi.Module.onProjectSerialized = function(data) {
+        if (config.onProjectSerialized) {
+            config.onProjectSerialized(data)
+        }
+    }
+
+    MuApi.Module.onNeedSave = function(needSave) {
+        if (config.onNeedSave) {
+            config.onNeedSave(needSave)
         }
     }
 

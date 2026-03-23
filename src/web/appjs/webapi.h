@@ -49,12 +49,14 @@ public:
     void load(const void* source, unsigned int len);
     void addSoundFont(const std::string& uri);
     void startAudioProcessing();
+    void serializeAsXml();
 
 private:
 
     WebApi() : muse::Contextable(muse::modularity::globalCtx) {}
 
     void onProjectSaved(const muse::io::path_t& path, mu::project::SaveMode mode);
+    void onNeedSaveChanged();
 
     project::INotationProjectPtr m_currentProject;
 };

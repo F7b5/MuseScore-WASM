@@ -70,6 +70,10 @@ void WebApi::init(const muse::modularity::ContextPtr& iocCtx)
             m_currentProject->saveComplited().onReceive(this, [this](const muse::io::path_t& path, project::SaveMode mode) {
                 onProjectSaved(path, mode);
             });
+
+            m_currentProject->needSave().notification.onNotify(this, [this]() {
+                onNeedSaveChanged();
+            });
         }
     };
 
@@ -122,4 +126,45 @@ void WebApi::onProjectSaved(const muse::io::path_t& path, mu::project::SaveMode)
     }
 
     callJsWithBytes("onProjectSaved", data.constData(), data.size());
+}
+
+void WebApi::onNeedSaveChanged()
+{
+    if (!m_currentProject) {
+        return;
+    }
+
+    bool needSave = m_currentProject->needSave().val;
+
+#ifdef Q_OS_WASM
+    emscripten::val::module_property("onNeedSave")(needSave);
+#endif
+}
+
+void WebApi::serializeAsXml()
+{
+    if (!m_currentProject) {
+        LOGE() << "No current project to serialize";
+        return;
+    }
+
+    io::path_t tempPath = "/mu/temp/autosave.mscs";
+    io::File::remove(tempPath);
+
+    Ret ret = m_currentProject->save(tempPath, project::SaveMode::SaveCopy, false);
+    if (!ret) {
+        LOGE() << "Failed to serialize project as XML: " << ret.toString();
+        return;
+    }
+
+    ByteArray data;
+    ret = io::File::readFile(tempPath, data);
+    io::File::remove(tempPath);
+
+    if (!ret) {
+        LOGE() << "Failed to read serialized XML";
+        return;
+    }
+
+    callJsWithBytes("onProjectSerialized", data.constData(), data.size());
 }
