@@ -26,9 +26,9 @@ import QtQuick.Layouts
 import Muse.Ui 1.0
 import Muse.UiComponents
 import Muse.Interactive
+import Muse.Dock
 
 import MuseScore.AppShell 1.0
-import MuseScore.Playback 1.0
 
 AppWindow {
     id: root
@@ -39,58 +39,54 @@ AppWindow {
         root.opacity = 1.0
     }
 
-    InteractiveProvider {
-        id: interactiveProvider
-        topParent: root
-
-        onRequestedDockPage: function(uri, params) {
-            root.revealWindow()
-            Qt.callLater(interactiveProvider.onPageOpened)
-        }
-    }
-
-    Component.onCompleted: {
-        Qt.callLater(root.revealWindow)
-    }
-
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
 
-        Item {
-            id: topChrome
+        AppMenuBar {
+            id: appMenuBar
             Layout.fillWidth: true
-            Layout.preferredHeight: Math.max(appMenuBar.implicitHeight, playbackToolBar.implicitHeight) + 12
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 8
-                anchors.rightMargin: 8
-                anchors.topMargin: 6
-                anchors.bottomMargin: 6
-                spacing: 16
-
-                AppMenuBar {
-                    id: appMenuBar
-
-                    Layout.fillWidth: true
-                    Layout.alignment: Qt.AlignVCenter
-
-                    appWindow: root
-                    availableWidth: Math.max(0, topChrome.width - playbackToolBar.width - 32)
-                }
-
-                PlaybackToolBar {
-                    id: playbackToolBar
-
-                    Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
-                }
-            }
+            appWindow: root
         }
 
-        NotationFrame {
+        DockWindow {
+            id: dockWindow
             Layout.fillWidth: true
             Layout.fillHeight: true
+
+            onPageLoaded: {
+                console.log("DockWindow::onPageLoaded")
+                interactiveProvider.onPageOpened()
+                root.revealWindow()
+            }
+
+            InteractiveProvider {
+                id: interactiveProvider
+                topParent: root
+
+                onRequestedDockPage: function(uri, params) {
+                    dockWindow.loadPage(uri, params)
+                }
+            }
+
+            NavigationSection {
+                id: topToolbarKeyNavSec
+                name: "TopTool"
+                order: 1
+            }
+
+            pages: [
+                NotationPage {
+                    topToolbarKeyNavSec: topToolbarKeyNavSec
+                }
+            ]
         }
+    }
+
+    Component.onCompleted: {
+        dockWindow.init()
+        Qt.callLater(function() {
+            dockWindow.loadPage("musescore://notation", {})
+        })
     }
 }

@@ -51,5 +51,6 @@ muse_module_add_qrc(appshell ${CMAKE_CURRENT_LIST_DIR}/appshell.qrc)
 target_link_libraries(appshell PRIVATE
     muse::ui
     muse::uicomponents
+    muse::dockwindow
     Qt::Quick
 )
