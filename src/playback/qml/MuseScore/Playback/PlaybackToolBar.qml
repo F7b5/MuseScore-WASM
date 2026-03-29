@@ -47,11 +47,30 @@ Item {
         id: thePlaybackModel
     }
 
-    width: content.width + (root.floating ? 12 : 0)
-    height: content.height
+    implicitWidth: content.width + (root.floating ? 12 : 0)
+    implicitHeight: content.height
+    width: implicitWidth
+    height: implicitHeight
 
     Component.onCompleted: {
         thePlaybackModel.load()
+        console.info(
+            "PlaybackToolBar completed:",
+            "floating=", root.floating,
+            "width=", root.width,
+            "implicitWidth=", root.implicitWidth,
+            "content.width=", content.width
+        )
+    }
+
+    onWidthChanged: {
+        console.info(
+            "PlaybackToolBar width changed:",
+            "floating=", root.floating,
+            "width=", root.width,
+            "implicitWidth=", root.implicitWidth,
+            "content.width=", content.width
+        )
     }
 
     Column {
@@ -60,6 +79,10 @@ Item {
         spacing: 8
 
         width: childrenRect.width
+
+        onWidthChanged: {
+            console.info("PlaybackToolBar content width changed:", content.width)
+        }
 
         enabled: thePlaybackModel.isPlayAllowed
 

@@ -40,5 +40,8 @@ EMSCRIPTEN_KEEPALIVE
 void startAudioProcessing() { WebApi::instance()->startAudioProcessing(); }
 
 EMSCRIPTEN_KEEPALIVE
+void save() { WebApi::instance()->save(); }
+
+EMSCRIPTEN_KEEPALIVE
 void serializeAsXml() { WebApi::instance()->serializeAsXml(); }
 }

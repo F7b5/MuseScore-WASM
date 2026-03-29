@@ -81,12 +81,14 @@ void WebAudioEngine::init()
 
     m_rpcChannel = std::make_shared<WebRpcChannel>();
     m_rpcChannel->setupOnEngine();
-    modularity::globalIoc()->registerExport<IRpcChannel>(moduleName(), m_rpcChannel);
 
-    m_contextSetup = std::make_shared<EngineContextSetup>(modularity::globalCtx());
+    const modularity::ContextPtr ctx = modularity::globalCtx();
+    modularity::ioc(ctx)->registerExport<IRpcChannel>(moduleName(), m_rpcChannel);
+
+    m_contextSetup = std::make_shared<EngineContextSetup>(ctx);
     m_contextSetup->registerExports();
 
-    m_controller = std::make_shared<EngineController>(m_rpcChannel, modularity::globalCtx());
+    m_controller = std::make_shared<EngineController>(m_rpcChannel, ctx);
     m_controller->onStartRunning();
 
     LOGI() << "Web audio engine running";

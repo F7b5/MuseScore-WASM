@@ -47,6 +47,32 @@ Item {
                                 : tempoLoader.x + tempoLoader.width
     height: 30
 
+    Component.onCompleted: {
+        console.info(
+            "PlaybackToolBarActions completed:",
+            "width=", root.width,
+            "buttons.width=", buttonsListView.width,
+            "timeField.x=", timeField.x,
+            "measureAndBeatFields.x=", measureAndBeatFields.x,
+            "tempoLoader.x=", tempoLoader.x,
+            "tempoLoader.width=", tempoLoader.width,
+            "endSeparator.x=", endSeparator.x
+        )
+    }
+
+    onWidthChanged: {
+        console.info(
+            "PlaybackToolBarActions width changed:",
+            "width=", root.width,
+            "buttons.width=", buttonsListView.width,
+            "timeField.x=", timeField.x,
+            "measureAndBeatFields.x=", measureAndBeatFields.x,
+            "tempoLoader.x=", tempoLoader.x,
+            "tempoLoader.width=", tempoLoader.width,
+            "endSeparator.x=", endSeparator.x
+        )
+    }
+
     ListView {
         id: buttonsListView
 

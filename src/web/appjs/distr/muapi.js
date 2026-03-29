@@ -3,6 +3,7 @@ import MuImpl from "./muimpl.js"
 const DEFAULT_SOUNDFONT = "sound/MS%20Basic.sf3"
 
 const MuApi = {
+    _onSave: null,
 
     // Load score
     loadScoreFile: MuImpl.loadScoreFile,
@@ -10,6 +11,18 @@ const MuApi = {
 
     // Start audio
     startAudioProcessing: MuImpl.startAudioProcessing.bind(MuImpl),
+
+    // Trigger the app's regular save action
+    save: function() {
+        if (MuApi.Module) {
+            MuApi.Module._save();
+        }
+    },
+
+    // Register a handler that receives the saved .mscz project bytes
+    registerOnSave: function(handler) {
+        MuApi._onSave = handler;
+    },
 
     // Serialize current project as .mscs XML — calls onProjectSerialized callback
     serializeAsXml: function() {
@@ -34,6 +47,15 @@ async function createMuApi(config) {
         }
     }
 
+    MuApi.Module.onSave = function(data) {
+        if (MuApi._onSave) {
+            MuApi._onSave(data)
+        }
+        if (config.onSave) {
+            config.onSave(data)
+        }
+    }
+
     MuApi.Module.onProjectSerialized = function(data) {
         if (config.onProjectSerialized) {
             config.onProjectSerialized(data)
@@ -46,8 +68,11 @@ async function createMuApi(config) {
         }
     }
 
+    if (config.onSave) {
+        MuApi.registerOnSave(config.onSave)
+    }
+
     return MuApi
 }
 
 export default createMuApi;
-

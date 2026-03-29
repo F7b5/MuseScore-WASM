@@ -797,6 +797,18 @@ bool ProjectActionsController::saveProject(SaveMode saveMode, SaveLocationType s
 
     INotationProjectPtr project = currentNotationProject();
 
+#ifdef Q_OS_WASM
+    const bool isWebLocalSave = saveLocationType != SaveLocationType::Cloud
+                                && (saveMode == SaveMode::Save
+                                    || saveMode == SaveMode::SaveAs
+                                    || saveMode == SaveMode::SaveCopy);
+    if (isWebLocalSave) {
+        constexpr const char* WEB_PROJECT_SAVE_PATH = "/mu/temp/current.mscz";
+        const SaveMode effectiveSaveMode = (saveMode == SaveMode::SaveCopy) ? SaveMode::SaveCopy : SaveMode::Save;
+        return saveProjectAt(SaveLocation(muse::io::path_t(WEB_PROJECT_SAVE_PATH)), effectiveSaveMode, force);
+    }
+#endif
+
     const bool isExistingSave = saveMode == SaveMode::Save && !project->isNewlyCreated();
     const bool wantNewCloudSave = saveLocationType == SaveLocationType::Cloud && !project->isCloudProject();
     if (isExistingSave && !wantNewCloudSave) {

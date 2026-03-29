@@ -73,15 +73,14 @@ Item {
             delegate: FlatButton {
                 id: radioButtonDelegate
 
-                property var item: Boolean(model) ? model.itemRole : null
+                required property MenuItem item
+                required property int index
+
                 property string menuId: Boolean(item) ? item.id : ""
                 property string title: Boolean(item) ? item.title : ""
                 property string titleWithMnemonicUnderline: Boolean(item) ? item.titleWithMnemonicUnderline : ""
-
                 property bool isMenuOpened: menuLoader.isMenuOpened && menuLoader.parent === this
                 property bool highlight: appMenuModel.highlightedMenuId === menuId
-
-                property int viewIndex: index
 
                 buttonType: FlatButton.TextOnly
                 isNarrow: true

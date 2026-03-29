@@ -339,36 +339,6 @@ std::vector<Uri> WebInteractive::stack() const
     return m_origin->stack();
 }
 
-Ret WebInteractive::openUrl(const std::string& url) const
-{
-    return openUrl(QUrl(QString::fromStdString(url)));
-}
-
-Ret WebInteractive::openUrl(const QUrl& url) const
-{
-    return m_origin->openUrl(url);
-}
-
-Ret WebInteractive::isAppExists(const std::string& appIdentifier) const
-{
-    return m_origin->isAppExists(appIdentifier);
-}
-
-Ret WebInteractive::canOpenApp(const UriQuery& uri) const
-{
-    return m_origin->canOpenApp(uri);
-}
-
-async::Promise<Ret> WebInteractive::openApp(const UriQuery& uri) const
-{
-    return m_origin->openApp(uri);
-}
-
-Ret WebInteractive::revealInFileBrowser(const io::path_t& filePath) const
-{
-    return m_origin->revealInFileBrowser(filePath);
-}
-
 async::Notification WebInteractive::currentUriAboutToBeChanged() const
 {
     return m_origin->currentUriAboutToBeChanged();

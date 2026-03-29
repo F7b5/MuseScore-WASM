@@ -26,6 +26,8 @@
 #include <emscripten/val.h>
 #endif
 
+#include <QBuffer>
+
 #include "global/io/file.h"
 
 #include "log.h"
@@ -111,8 +113,17 @@ void WebApi::startAudioProcessing()
     startAudioController()->startAudioProcessing(IApplication::RunMode::GuiApp);
 }
 
-void WebApi::onProjectSaved(const muse::io::path_t& path, mu::project::SaveMode)
+void WebApi::save()
 {
+    dispatcher()->dispatch("file-save");
+}
+
+void WebApi::onProjectSaved(const muse::io::path_t& path, mu::project::SaveMode mode)
+{
+    if (m_isSerializingProject || mode == project::SaveMode::SaveCopy) {
+        return;
+    }
+
     IF_ASSERT_FAILED(io::File::exists(path)) {
         LOGE() << "file does not exist, path: " << path;
         return;
@@ -126,6 +137,7 @@ void WebApi::onProjectSaved(const muse::io::path_t& path, mu::project::SaveMode)
     }
 
     callJsWithBytes("onProjectSaved", data.constData(), data.size());
+    emitSavedProject("onSave");
 }
 
 void WebApi::onNeedSaveChanged()
@@ -141,7 +153,29 @@ void WebApi::onNeedSaveChanged()
 #endif
 }
 
-void WebApi::serializeAsXml()
+void WebApi::emitSavedProject(const char* callbackName)
+{
+    if (!m_currentProject) {
+        LOGE() << "No current project to save";
+        return;
+    }
+
+    QBuffer savedProject;
+    savedProject.open(QIODevice::WriteOnly);
+
+    Ret ret = m_currentProject->writeToDevice(&savedProject);
+    if (!ret) {
+        LOGE() << "Failed to save project to memory: " << ret.toString();
+        return;
+    }
+
+    QByteArray data = savedProject.data();
+    callJsWithBytes(callbackName,
+                    reinterpret_cast<const uint8_t*>(data.constData()),
+                    static_cast<size_t>(data.size()));
+}
+
+void WebApi::emitSerializedProject(const char* callbackName)
 {
     if (!m_currentProject) {
         LOGE() << "No current project to serialize";
@@ -151,7 +185,9 @@ void WebApi::serializeAsXml()
     io::path_t tempPath = "/mu/temp/autosave.mscs";
     io::File::remove(tempPath);
 
+    m_isSerializingProject = true;
     Ret ret = m_currentProject->save(tempPath, project::SaveMode::SaveCopy, false);
+    m_isSerializingProject = false;
     if (!ret) {
         LOGE() << "Failed to serialize project as XML: " << ret.toString();
         return;
@@ -166,5 +202,10 @@ void WebApi::serializeAsXml()
         return;
     }
 
-    callJsWithBytes("onProjectSerialized", data.constData(), data.size());
+    callJsWithBytes(callbackName, data.constData(), data.size());
+}
+
+void WebApi::serializeAsXml()
+{
+    emitSerializedProject("onProjectSerialized");
 }
