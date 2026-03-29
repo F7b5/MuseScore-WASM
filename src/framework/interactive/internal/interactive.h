@@ -46,7 +46,7 @@ class Interactive : public QObject, public IInteractive, public IInteractiveProv
 
     GlobalInject<ui::IUiConfiguration> uiConfiguration;
     GlobalInject<interactive::IInteractiveUriRegister> uriRegister;
-    GlobalInject<extensions::IExtensionsProvider> extensionsProvider;
+    ContextInject<extensions::IExtensionsProvider> extensionsProvider = { this };
     ContextInject<shortcuts::IShortcutsRegister> shortcutsRegister = { this };
     ContextInject<ui::IMainWindow> mainWindow = { this };
 
@@ -95,6 +95,8 @@ public:
                                                  const std::vector<std::string>& filter) override;
     io::path_t selectOpeningFileSync(const std::string& title, const io::path_t& dir, const std::vector<std::string>& filter,
                                      const int options) override;
+    io::paths_t selectOpeningFilesSync(const std::string& title, const io::path_t& dir, const std::vector<std::string>& filter,
+                                       const int options) override;
     io::path_t selectSavingFileSync(const std::string& title, const io::path_t& path, const std::vector<std::string>& filter,
                                     bool confirmOverwrite = true) override;
 
