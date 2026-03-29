@@ -22,8 +22,7 @@ const MuApi = {
 async function createMuApi(config) {
 
     if (!config.soundFont) {
-        const directoryUrl = new URL('./', window.location.href).toString();
-        config.soundFont = directoryUrl + "/" + DEFAULT_SOUNDFONT
+        config.soundFont = window.location.origin + "/wasm/" + DEFAULT_SOUNDFONT
     }
 
     MuApi.Module = await MuImpl.loadModule(config)

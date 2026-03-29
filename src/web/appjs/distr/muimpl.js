@@ -73,9 +73,9 @@ async function setupDriver(Module)
 async function setupWorker(Module)
 {
     // Initialize the worker.
-    Module.worker = new Worker("distr/audioworker.js")
+    Module.worker = new Worker("/wasm/distr/audioworker.js")
 
-    var museAudioUrl = new URL("MuseAudio.js", window.location) + "";
+    var museAudioUrl = "/wasm/MuseAudio.js";
 
     Module.worker.onmessage = function(event) {
         if (event.data.type == "WORKER_INITED") {
@@ -101,8 +101,20 @@ const MuImpl = {
 
         console.info("STEP 0: Begin load main module")
 
+        // Resolve WASM assets relative to the MuseScoreStudio.js script, not the page URL
+        var wasmBase = '/wasm/';
+        var scriptEl = document.querySelector('script[src*="MuseScoreStudio.js"]');
+        if (scriptEl) {
+            var src = scriptEl.getAttribute('src');
+            wasmBase = src.substring(0, src.lastIndexOf('/') + 1);
+        }
+
         this.Module = {
             config: config, // static configuration
+
+            locateFile: function(filename) {
+                return wasmBase + filename;
+            },
 
             qt: {
                 onLoaded: opt.onLoaded,

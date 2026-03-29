@@ -32,8 +32,8 @@ let AudioDriver = (function () {
             try {
 
                 const code = await URLFromFiles([
-                    './MuseAudio.js',
-                    './distr/audio_worklet_processor.js'
+                    '/wasm/MuseAudio.js',
+                    '/wasm/distr/audio_worklet_processor.js'
                 ]);
 
                 await audioContext.audioWorklet.addModule(code)
