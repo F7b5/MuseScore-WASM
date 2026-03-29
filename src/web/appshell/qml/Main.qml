@@ -53,53 +53,48 @@ AppWindow {
         Qt.callLater(root.revealWindow)
     }
 
-    AppMenuBar {
-        id: appMenuBar
-        anchors.top: parent.top
-        anchors.left: parent.left
-        anchors.right: parent.right
-    }
+    ColumnLayout {
+        anchors.fill: parent
+        spacing: 0
 
-    Item {
-        id: contentItem
-        anchors.top: appMenuBar.bottom
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
+        Item {
+            id: topChrome
+            Layout.fillWidth: true
+            Layout.preferredHeight: Math.max(appMenuBar.implicitHeight, playbackToolBar.implicitHeight) + 12
 
-        StyledTabBar {
-            id: bar
-            anchors.left: parent.left
-            anchors.margins: 16
-            width: 300
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 8
+                anchors.rightMargin: 8
+                anchors.topMargin: 6
+                anchors.bottomMargin: 6
+                spacing: 16
 
-            StyledTabButton {
-                text: "Notation"
-            }
-            StyledTabButton {
-                text: "Dev"
+                AppMenuBar {
+                    id: appMenuBar
+
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignVCenter
+
+                    appWindow: root
+                    availableWidth: Math.max(0, topChrome.width - playbackToolBar.implicitWidth - 32)
+
+                    Component.onCompleted: {
+                        console.info("WebMain: app menu bar created, availableWidth=", availableWidth)
+                    }
+                }
+
+                PlaybackToolBar {
+                    id: playbackToolBar
+
+                    Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                }
             }
         }
 
-        PlaybackToolBar {
-            anchors.left: bar.right
-            anchors.right: parent.right
-            anchors.leftMargin: 16
-        }
-
-        StackLayout {
-            anchors.top: bar.bottom
-            anchors.topMargin: 8
-            anchors.bottom: parent.bottom
-            anchors.left: parent.left
-            anchors.right: parent.right
-            currentIndex: bar.currentIndex
-
-            NotationFrame {
-            }
-
-            DevFrame {
-            }
+        NotationFrame {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
         }
     }
 }

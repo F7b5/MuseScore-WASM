@@ -30,7 +30,7 @@ Item {
 
     property alias appWindow: appMenuModel.appWindow
 
-    property int availableWidth: 0
+    property int availableWidth: width
     property bool truncated: availableWidth < contentRow.childrenRect.width
 
     implicitWidth: contentRow.width
@@ -60,6 +60,7 @@ Item {
     }
 
     Component.onCompleted: {
+        console.info("WebAppMenuBar: loading menu model, width=", width, "availableWidth=", availableWidth)
         appMenuModel.load()
     }
 
