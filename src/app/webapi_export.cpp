@@ -43,5 +43,16 @@ EMSCRIPTEN_KEEPALIVE
 void save() { WebApi::instance()->save(); }
 
 EMSCRIPTEN_KEEPALIVE
+void deleteSelection() { WebApi::instance()->deleteSelection(); }
+
+EMSCRIPTEN_KEEPALIVE
+const char* projectTitle()
+{
+    static std::string title;
+    title = WebApi::instance()->projectTitle();
+    return title.c_str();
+}
+
+EMSCRIPTEN_KEEPALIVE
 void serializeAsXml() { WebApi::instance()->serializeAsXml(); }
 }

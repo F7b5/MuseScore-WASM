@@ -118,6 +118,25 @@ void WebApi::save()
     dispatcher()->dispatch("file-save");
 }
 
+void WebApi::deleteSelection()
+{
+    dispatcher()->dispatch("action://delete");
+}
+
+std::string WebApi::projectTitle() const
+{
+    if (!m_currentProject) {
+        return {};
+    }
+
+    const QString title = m_currentProject->metaInfo().title.trimmed();
+    if (!title.isEmpty()) {
+        return title.toStdString();
+    }
+
+    return m_currentProject->displayName().toStdString();
+}
+
 void WebApi::onProjectSaved(const muse::io::path_t& path, mu::project::SaveMode mode)
 {
     if (m_isSerializingProject || mode == project::SaveMode::SaveCopy) {

@@ -50,6 +50,8 @@ public:
     void addSoundFont(const std::string& uri);
     void startAudioProcessing();
     void save();
+    void deleteSelection();
+    std::string projectTitle() const;
     void serializeAsXml();
 
 private:

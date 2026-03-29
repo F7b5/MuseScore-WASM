@@ -53,19 +53,6 @@ AppWindow {
         Qt.callLater(root.revealWindow)
     }
 
-    function logTopChromeLayout(reason) {
-        console.info(
-            "WebMain layout:",
-            reason,
-            "root.width=", root.width,
-            "topChrome.width=", topChrome.width,
-            "appMenuBar.width=", appMenuBar.width,
-            "appMenuBar.availableWidth=", appMenuBar.availableWidth,
-            "playbackToolBar.width=", playbackToolBar.width,
-            "playbackToolBar.implicitWidth=", playbackToolBar.implicitWidth
-        )
-    }
-
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
@@ -91,26 +78,14 @@ AppWindow {
 
                     appWindow: root
                     availableWidth: Math.max(0, topChrome.width - playbackToolBar.width - 32)
-
-                    Component.onCompleted: {
-                        console.info("WebMain: app menu bar created, availableWidth=", availableWidth)
-                    }
-
-                    onWidthChanged: root.logTopChromeLayout("appMenuBar width changed")
-                    onAvailableWidthChanged: root.logTopChromeLayout("appMenuBar availableWidth changed")
                 }
 
                 PlaybackToolBar {
                     id: playbackToolBar
 
                     Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
-
-                    onWidthChanged: root.logTopChromeLayout("playbackToolBar width changed")
                 }
             }
-
-            Component.onCompleted: root.logTopChromeLayout("topChrome completed")
-            onWidthChanged: root.logTopChromeLayout("topChrome width changed")
         }
 
         NotationFrame {

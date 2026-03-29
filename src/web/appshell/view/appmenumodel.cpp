@@ -112,6 +112,7 @@ muse::uicomponents::MenuItem* AppMenuModel::makeFileMenu()
     MenuItemList fileItems {
         makeMenuItem("file-new"),
         makeMenuItem("file-save"),
+        makeMenuItem("project-properties"),
         makeSeparator(),
         makeMenuItem("parts", TranslatableString("action", "Parts…"))
     };

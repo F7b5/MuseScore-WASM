@@ -19,6 +19,20 @@ const MuApi = {
         }
     },
 
+    deleteSelection: function() {
+        if (MuApi.Module) {
+            MuApi.Module._deleteSelection();
+        }
+    },
+
+    projectTitle: function() {
+        if (!MuApi.Module) {
+            return "";
+        }
+
+        return MuApi.Module.ccall('projectTitle', 'string', [], []) || "";
+    },
+
     // Register a handler that receives the saved .mscz project bytes
     registerOnSave: function(handler) {
         MuApi._onSave = handler;
