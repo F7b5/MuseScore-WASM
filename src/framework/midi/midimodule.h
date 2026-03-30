@@ -40,6 +40,9 @@ class WinMidiInPort;
 #elif defined(Q_OS_MACOS)
 class CoreMidiOutPort;
 class CoreMidiInPort;
+#elif defined(__EMSCRIPTEN__)
+class WebMidiOutPort;
+class WebMidiInPort;
 #else
 class DummyMidiOutPort;
 class DummyMidiInPort;
@@ -67,6 +70,10 @@ private:
     #elif defined(Q_OS_MACOS)
     std::shared_ptr<CoreMidiOutPort> m_midiOutPort;
     std::shared_ptr<CoreMidiInPort> m_midiInPort;
+
+    #elif defined(__EMSCRIPTEN__)
+    std::shared_ptr<WebMidiOutPort> m_midiOutPort;
+    std::shared_ptr<WebMidiInPort> m_midiInPort;
 
     #else
     std::shared_ptr<DummyMidiOutPort> m_midiOutPort;

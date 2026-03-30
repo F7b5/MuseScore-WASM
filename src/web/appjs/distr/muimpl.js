@@ -1,6 +1,7 @@
 import config from "./config.js";
 import qtLoad from "./qtloader.js";
 import AudioDriver from "./audiodriver.js";
+import MidiDriver from "./mididriver.js";
 
 function setupInternalCallbacks(Module) {
 
@@ -136,6 +137,8 @@ const MuImpl = {
         console.info("STEP 0.1: End setupRpc")
         setupInternalCallbacks(this.Module);
         console.info("STEP 0.2: End setupInternalCallbacks")
+        this.Module.midiDriver = MidiDriver;
+        console.info("STEP 0.2.1: Attached MidiDriver")
 
         this.Module = await qtLoad(this.Module);
         console.info("STEP 0.3: End load main module")

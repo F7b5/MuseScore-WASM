@@ -62,7 +62,7 @@ elseif (OS_IS_WIN)
 
     target_link_libraries(muse_midi PRIVATE winmm)
 elseif (OS_IS_LIN OR OS_IS_FBSD)
-    target_sources(muse_midi PRIVATE 
+    target_sources(muse_midi PRIVATE
         internal/platform/lin/alsamidioutport.cpp
         internal/platform/lin/alsamidioutport.h
         internal/platform/lin/alsamidiinport.cpp
@@ -72,4 +72,11 @@ elseif (OS_IS_LIN OR OS_IS_FBSD)
     find_package(ALSA REQUIRED)
     target_include_directories(muse_midi PRIVATE ${ALSA_INCLUDE_DIRS})
     target_link_libraries(muse_midi PRIVATE ${ALSA_LIBRARIES} pthread)
+elseif(OS_IS_WASM)
+    target_sources(muse_midi PRIVATE
+        internal/platform/web/webmidiinport.cpp
+        internal/platform/web/webmidiinport.h
+        internal/platform/web/webmidioutport.cpp
+        internal/platform/web/webmidioutport.h
+    )
 endif()
