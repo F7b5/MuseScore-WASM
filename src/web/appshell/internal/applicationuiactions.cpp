@@ -156,6 +156,14 @@ const UiActionList ApplicationUiActions::m_actions = {
              TranslatableString("action", "&Status bar"),
              TranslatableString("action", "Show/hide status bar"),
              Checkable::Yes
+             ),
+
+    // Preferences
+    UiAction("preference-dialog",
+             mu::context::UiCtxAny,
+             mu::context::CTX_ANY,
+             TranslatableString("action", "&Preferences…"),
+             TranslatableString("action", "Preferences")
              )
 };
 

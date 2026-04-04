@@ -21,7 +21,6 @@
  */
 #include "webmidiinport.h"
 
-#include <emscripten.h>
 #include <emscripten/val.h>
 #include <emscripten/bind.h>
 
@@ -54,17 +53,7 @@ EMSCRIPTEN_BINDINGS(WebMidiIn) {
 void WebMidiInPort::init()
 {
     g_webMidiInPort = this;
-
-    // Request MIDI access — triggers the browser permission prompt
-    EM_ASM({
-        if (Module.midiDriver) {
-            Module.midiDriver.requestAccess();
-        } else {
-            console.warn("[WebMidiInPort] midiDriver not attached to Module");
-        }
-    });
-
-    LOGI() << "WebMidiInPort initialized, MIDI access requested";
+    LOGI() << "WebMidiInPort initialized";
 }
 
 void WebMidiInPort::deinit()

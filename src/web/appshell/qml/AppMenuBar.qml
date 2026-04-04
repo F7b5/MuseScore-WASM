@@ -156,6 +156,10 @@ Item {
         }
     }
 
+    MidiPreferencesDialog {
+        id: midiPrefsDialog
+    }
+
     StyledMenuLoader {
         id: menuLoader
 
@@ -163,6 +167,10 @@ Item {
         property bool hasSiblingMenus: true
 
         onHandleMenuItem: function(itemId) {
+            if (itemId === "preference-dialog") {
+                midiPrefsDialog.open()
+                return
+            }
             Qt.callLater(appMenuModel.handleMenuItem, itemId)
         }
 

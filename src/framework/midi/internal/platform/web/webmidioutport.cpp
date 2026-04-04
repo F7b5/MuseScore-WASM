@@ -142,10 +142,6 @@ bool WebMidiOutPort::supportsMIDI20Output() const
 
 Ret WebMidiOutPort::sendEvent(const Event& e)
 {
-    if (!isConnected()) {
-        return make_ret(Err::MidiNotConnected);
-    }
-
     // Convert MIDI 2.0 events to MIDI 1.0 for the Web MIDI API
     if (e.messageType() == Event::MessageType::ChannelVoice20) {
         auto events = e.toMIDI10();
@@ -166,18 +162,26 @@ Ret WebMidiOutPort::sendEvent(const Event& e)
         return Ret(true);
     }
 
+    int b0 = static_cast<int>(bytes[0]);
+    int b1 = static_cast<int>(count > 1 ? bytes[1] : 0);
+    int b2 = static_cast<int>(count > 2 ? bytes[2] : 0);
+    int c = static_cast<int>(count);
+
+    // Try midiDriver on main thread Module first (main thread context)
     emscripten::val midiDriver = emscripten::val::module_property("midiDriver");
-    if (midiDriver.isUndefined() || midiDriver.isNull()) {
-        return make_ret(Err::MidiNotConnected);
+    if (!midiDriver.isUndefined() && !midiDriver.isNull()) {
+        midiDriver.call<void>("sendMidiBytes", b0, b1, b2, c);
+        return Ret(true);
     }
 
-    midiDriver.call<void>("sendMidiBytes",
-                          static_cast<int>(bytes[0]),
-                          static_cast<int>(count > 1 ? bytes[1] : 0),
-                          static_cast<int>(count > 2 ? bytes[2] : 0),
-                          static_cast<int>(count));
+    // In AudioWorklet context: relay MIDI to main thread via postMessage
+    emscripten::val sendFn = emscripten::val::global("sendMidiToMain");
+    if (!sendFn.isUndefined() && !sendFn.isNull()) {
+        sendFn(b0, b1, b2, c);
+        return Ret(true);
+    }
 
-    return Ret(true);
+    return make_ret(Err::MidiNotConnected);
 }
 
 void WebMidiOutPort::onDevicesChanged()

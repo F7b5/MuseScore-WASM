@@ -50,9 +50,14 @@ let AudioDriver = (function () {
 
             // driver (processor) -> main
             processor.port.onmessage = function(event) {
-                console.log("[processor]", event.data)
-
-                if (event.data.type == "DRIVER_INITED") {
+                if (event.data.type == "debug") {
+                    // suppress noisy debug messages
+                } else if (event.data.type == "midi_out") {
+                    // Relay MIDI from AudioWorklet to Web MIDI API
+                    if (api.onMidiOut) {
+                        api.onMidiOut(event.data.byte0, event.data.byte1, event.data.byte2, event.data.count);
+                    }
+                } else if (event.data.type == "DRIVER_INITED") {
                     api.inited = true;
                     if (api.onInited) {
                         api.onInited();

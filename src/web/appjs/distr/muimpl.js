@@ -63,6 +63,13 @@ async function setupDriver(Module)
         Module.ccall('addSoundFont', '', ['string'], [Module.soundFont]);
     }
 
+    // Bridge MIDI output from AudioWorklet to Web MIDI API
+    AudioDriver.onMidiOut = function(byte0, byte1, byte2, count) {
+        if (Module.midiDriver) {
+            Module.midiDriver.sendMidiBytes(byte0, byte1, byte2, count);
+        }
+    }
+
     if (config.MUSE_MODULE_AUDIO_WORKER == "ON") {
         await AudioDriver.setup(Module.config, Module.driver_worker_rpcChannel.port1);
     } else {
@@ -137,17 +144,32 @@ const MuImpl = {
         console.info("STEP 0.1: End setupRpc")
         setupInternalCallbacks(this.Module);
         console.info("STEP 0.2: End setupInternalCallbacks")
+        // Attach MidiDriver before qtLoad so _onStartApp can use it
         this.Module.midiDriver = MidiDriver;
-        console.info("STEP 0.2.1: Attached MidiDriver")
+        console.info("STEP 0.2.2: Attached MidiDriver to Module")
 
         this.Module = await qtLoad(this.Module);
         console.info("STEP 0.3: End load main module")
+
+        // Re-attach to the qtLoad-returned Module for C++ emscripten::val access
+        this.Module.midiDriver = MidiDriver;
+        console.info("STEP 0.3.1: Re-attached MidiDriver")
 
         return this.Module;
     },
 
     _onStartApp: async function() {
         console.info("STEP 1: Begin on onStartApp")
+
+        // Request MIDI access (triggers browser permission prompt)
+        console.info("STEP 1.0: midiDriver present?", !!this.Module.midiDriver)
+        if (this.Module.midiDriver) {
+            console.info("STEP 1.0: Calling midiDriver.requestAccess()...")
+            this.Module.midiDriver.requestAccess();
+            console.info("STEP 1.0: MIDI access requested (async)")
+        } else {
+            console.warn("STEP 1.0: midiDriver NOT found on Module")
+        }
 
         if (config.MUSE_AUDIO_ENGINE !== "ON") {
             console.info("STEP 1.1: Skip setupDriver (audio engine disabled)")

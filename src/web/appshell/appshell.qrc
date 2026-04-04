@@ -8,5 +8,6 @@
         <file>qml/NotationPage.qml</file>
         <file>qml/NotationStatusBar.qml</file>
         <file>qml/DevFrame.qml</file>
+        <file>qml/MidiPreferencesDialog.qml</file>
     </qresource>
 </RCC>

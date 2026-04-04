@@ -38,6 +38,7 @@
 #include "view/notationpagemodel.h"
 #include "view/notationstatusbarmodel.h"
 #include "view/navigableappmenumodel.h"
+#include "view/midipreferencesmodel.h"
 
 using namespace mu::appshell;
 using namespace muse;
@@ -67,6 +68,7 @@ void AppShellModule::resolveImports()
     if (ir) {
         ir->registerPageUri(Uri("musescore://notation"));
         ir->registerPageUri(Uri("musescore://devtools"));
+        // Preferences dialog is opened directly from QML (AppMenuBar.qml)
     }
 }
 
@@ -80,6 +82,7 @@ void AppShellModule::registerUiTypes()
     qmlRegisterType<NavigableAppMenuModel>("MuseScore.AppShell", 1, 0, "AppMenuModel");
     qmlRegisterType<NotationPageModel>("MuseScore.AppShell", 1, 0, "NotationPageModel");
     qmlRegisterType<NotationStatusBarModel>("MuseScore.AppShell", 1, 0, "NotationStatusBarModel");
+    qmlRegisterType<MidiPreferencesModel>("MuseScore.AppShell", 1, 0, "MidiPreferencesModel");
 }
 
 void AppShellModule::onPreInit(const IApplication::RunMode& mode)

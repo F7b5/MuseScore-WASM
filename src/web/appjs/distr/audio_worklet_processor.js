@@ -49,6 +49,16 @@ class MuseDriverProcessor extends AudioWorkletProcessor {
         globalThis.debugLog = function(data) {
             globalThis.mainPort.postMessage(data)
         }
+        // Bridge MIDI output from AudioWorklet WASM to main thread
+        globalThis.sendMidiToMain = function(byte0, byte1, byte2, count) {
+            globalThis.mainPort.postMessage({
+                type: "midi_out",
+                byte0: byte0,
+                byte1: byte1,
+                byte2: byte2,
+                count: count
+            });
+        }
     }
 
     init(data) {

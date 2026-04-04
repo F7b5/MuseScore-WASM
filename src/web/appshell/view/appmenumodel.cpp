@@ -114,7 +114,9 @@ muse::uicomponents::MenuItem* AppMenuModel::makeFileMenu()
         makeMenuItem("file-save"),
         makeMenuItem("project-properties"),
         makeSeparator(),
-        makeMenuItem("parts", TranslatableString("action", "Parts…"))
+        makeMenuItem("parts", TranslatableString("action", "Parts…")),
+        makeSeparator(),
+        makeMenuItem("preference-dialog")
     };
 
     return makeMenu(TranslatableString("appshell/menu/file", "&File"), fileItems, "menu-file");

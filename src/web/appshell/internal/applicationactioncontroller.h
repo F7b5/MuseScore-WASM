@@ -42,8 +42,6 @@ public:
 
     void preInit();
     void init();
-
-private:
 };
 }
 

@@ -44,6 +44,8 @@ target_sources(appshell PRIVATE
     view/notationstatusbarmodel.h
     view/navigableappmenumodel.cpp
     view/navigableappmenumodel.h
+    view/midipreferencesmodel.cpp
+    view/midipreferencesmodel.h
 )
 
 muse_module_add_qrc(appshell ${CMAKE_CURRENT_LIST_DIR}/appshell.qrc)
