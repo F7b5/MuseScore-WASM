@@ -140,16 +140,6 @@ void MasterScore::setFileInfoProvider(IFileInfoProviderPtr fileInfoProvider)
     m_fileInfoProvider = fileInfoProvider;
 }
 
-bool MasterScore::saved() const
-{
-    return m_saved;
-}
-
-void MasterScore::setSaved(bool v)
-{
-    m_saved = v;
-}
-
 String MasterScore::name() const
 {
     return fileInfo()->displayName();
@@ -383,6 +373,14 @@ void MasterScore::setLayout(const Fraction& tick1, const Fraction& tick2, staff_
 
         m_cmdState.setElement(e);
     }
+}
+
+void MasterScore::initAutomation()
+{
+    IF_ASSERT_FAILED(m_automationController) {
+        return;
+    }
+    m_automationController->init(this);
 }
 
 //---------------------------------------------------------

@@ -85,6 +85,7 @@
 #include "../dom/stringtunings.h"
 #include "../dom/system.h"
 #include "../dom/systemtext.h"
+#include "../dom/tapping.h"
 #include "../dom/tempotext.h"
 #include "../dom/text.h"
 #include "../dom/textline.h"
@@ -3073,7 +3074,7 @@ void Score::deleteItem(EngravingItem* el)
 
     case ElementType::ACCIDENTAL:
         if (el->explicitParent()->isNote()) {
-            changeAccidental(toNote(el->explicitParent()), AccidentalType::NONE);
+            EditNote::changeAccidental(this, toNote(el->explicitParent()), AccidentalType::NONE);
         } else {
             undoRemoveElement(el);
         }
@@ -6028,40 +6029,6 @@ void Score::undoChangeElement(EngravingItem* oldElement, EngravingItem* newEleme
 }
 
 //---------------------------------------------------------
-//   undoChangePitch
-//---------------------------------------------------------
-
-void Score::undoChangePitch(Note* note, int pitch, int tpc1, int tpc2)
-{
-    for (EngravingObject* e : note->linkList()) {
-        Note* n = toNote(e);
-        undoStack()->pushAndPerform(new ChangePitch(n, pitch, tpc1, tpc2), 0);
-    }
-}
-
-//---------------------------------------------------------
-//   undoChangeFretting
-//
-//    To use with tablatures to force a specific note fretting;
-//    Pitch, string and fret must be changed all together; otherwise,
-//    if they are not consistent among themselves, the refretting algorithm may re-assign
-//    fret and string numbers for (potentially) all the notes of all the chords of a segment.
-//---------------------------------------------------------
-
-void Score::undoChangeFretting(Note* note, int pitch, int string, int fret, int tpc1, int tpc2)
-{
-    const LinkedObjects* l = note->links();
-    if (l) {
-        for (EngravingObject* e : *l) {
-            Note* n = toNote(e);
-            undo(new ChangeFretting(n, pitch, string, fret, tpc1, tpc2));
-        }
-    } else {
-        undo(new ChangeFretting(note, pitch, string, fret, tpc1, tpc2));
-    }
-}
-
-//---------------------------------------------------------
 //   undoChangeKeySig
 //---------------------------------------------------------
 
@@ -7684,30 +7651,6 @@ void Score::undoChangeSpannerElements(Spanner* spanner, EngravingItem* startElem
 }
 
 //---------------------------------------------------------
-//   undoChangeTuning
-//---------------------------------------------------------
-
-void Score::undoChangeTuning(Note* n, double v)
-{
-    n->undoChangeProperty(Pid::TUNING, v);
-}
-
-void Score::undoChangeUserMirror(Note* n, DirectionH d)
-{
-    n->undoChangeProperty(Pid::MIRROR_HEAD, d);
-}
-
-//---------------------------------------------------------
-//   undoChangeTpc
-//    TODO-TPC: check
-//---------------------------------------------------------
-
-void Score::undoChangeTpc(Note* note, int v)
-{
-    note->undoChangeProperty(Pid::TPC1, v);
-}
-
-//---------------------------------------------------------
 //   undoAddBracket
 //---------------------------------------------------------
 
@@ -7721,6 +7664,19 @@ void Score::undoAddBracket(Staff* staff, size_t level, BracketType type, size_t 
     for (staff_idx_t staffIdx = startStaffIdx; staffIdx < startStaffIdx + span && staffIdx < totStaves; ++staffIdx) {
         const std::vector<BracketItem*>& brackets = m_staves.at(staffIdx)->brackets();
 
+        bool collision = false;
+        for (BracketItem* b : brackets) {
+            if (b->bracketType() != BracketType::NO_BRACKET && b->bracketType() != BracketType::GROUP
+                && b->column() == level) {
+                collision = true;
+                break;
+            }
+        }
+
+        if (!collision) {
+            continue;
+        }
+
         for (int i = static_cast<int>(brackets.size()) - 1; i >= static_cast<int>(level); --i) {
             if (i >= static_cast<int>(brackets.size())) {
                 // This might theoretically happen when a lot of brackets get cleaned up
@@ -7728,13 +7684,16 @@ void Score::undoAddBracket(Staff* staff, size_t level, BracketType type, size_t 
                 continue;
             }
 
-            if (brackets[i]->bracketType() == BracketType::NO_BRACKET) {
-                // Better not get brackets with type NO_BRACKET in the UndoStack,
-                // as they might be cleaned up (Staff::cleanupBrackets())
+            BracketItem* bi = brackets[i];
+            if (bi->column() > level) {
                 continue;
             }
 
-            brackets[i]->undoChangeProperty(Pid::BRACKET_COLUMN, brackets[i]->column() + 1);
+            if (bi->bracketType() == BracketType::NO_BRACKET || bi->bracketType() == BracketType::GROUP) {
+                continue;
+            }
+
+            bi->undoChangeProperty(Pid::BRACKET_COLUMN, bi->column() + 1);
         }
     }
 

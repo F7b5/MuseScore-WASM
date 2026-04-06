@@ -90,6 +90,7 @@
 #include "engraving/dom/tuplet.h"
 #include "engraving/dom/utils.h"
 #include "engraving/editing/editchord.h"
+#include "engraving/editing/editnote.h"
 #include "engraving/editing/editpart.h"
 #include "engraving/editing/editsystemlocks.h"
 #include "engraving/editing/splitjoinmeasure.h"
@@ -1984,14 +1985,12 @@ bool NotationInteraction::dropSingle(const PointF& pos, Qt::KeyboardModifiers mo
     score()->addRefresh(edd.ed.dropElement->canvasBoundingRect());
     ElementType et = edd.ed.dropElement->type();
     switch (et) {
-    case ElementType::TEXTLINE:
-        systemStavesOnly = edd.ed.dropElement->systemFlag();
-        [[fallthrough]];
     case ElementType::VOLTA:
     case ElementType::GRADUAL_TEMPO_CHANGE:
         // voltas drop to system staves by default, or closest staff if Control is held
-        systemStavesOnly = systemStavesOnly || !(edd.ed.modifiers & Qt::ControlModifier);
+        systemStavesOnly = !(edd.ed.modifiers & Qt::ControlModifier);
         [[fallthrough]];
+    case ElementType::TEXTLINE:
     case ElementType::OTTAVA:
     case ElementType::TRILL:
     case ElementType::PEDAL:
@@ -2001,6 +2000,7 @@ bool NotationInteraction::dropSingle(const PointF& pos, Qt::KeyboardModifiers mo
     case ElementType::HAIRPIN:
     case ElementType::WHAMMY_BAR:
     {
+        systemStavesOnly |=  edd.ed.dropElement->systemFlag();
         mu::engraving::Spanner* spanner = ptr::checked_cast<mu::engraving::Spanner>(edd.ed.dropElement);
         score()->cmdAddSpanner(spanner, pos, systemStavesOnly);
         score()->setUpdateAll();
@@ -4242,13 +4242,17 @@ void NotationInteraction::movePitch(MoveDirection d, PitchMode mode)
     IF_ASSERT_FAILED(MoveDirection::Up == d || MoveDirection::Down == d) {
         return;
     }
-
-    if (score()->selection().element() && score()->selection().element()->isRest()) {
+    EngravingItem* selected = score()->selection().element();
+    if (selected && selected->isRest()) {
+        if (noteInput()->state().staffGroup() == mu::engraving::StaffGroup::TAB) {
+            // The rest won't be visible - don't try to move it...
+            return;
+        }
         startEdit(TranslatableString("undoableAction", "Change vertical position"));
-        score()->cmdMoveRest(toRest(score()->selection().element()), toDirection(d));
+        score()->cmdMoveRest(toRest(selected), toDirection(d));
     } else {
         startEdit(TranslatableString("undoableAction", "Change pitch"));
-        score()->upDown(MoveDirection::Up == d, mode);
+        EditNote::upDown(score(), MoveDirection::Up == d, mode);
     }
 
     apply();
@@ -5766,9 +5770,9 @@ void NotationInteraction::toggleAccidentalForSelection(AccidentalType type)
     startEdit(TranslatableString("undoableAction", "Toggle accidental"));
 
     if (accidentalAlreadyAdded) {
-        score()->changeAccidental(AccidentalType::NONE);
+        mu::engraving::EditNote::changeAccidental(score(), AccidentalType::NONE);
     } else {
-        score()->changeAccidental(type);
+        mu::engraving::EditNote::changeAccidental(score(), type);
     }
 
     apply();
@@ -8382,12 +8386,16 @@ void NotationInteraction::execute(void (mu::engraving::Score::* function)(P), P 
 
 void NotationInteraction::toggleArticulation(mu::engraving::SymId symId)
 {
-    execute(&mu::engraving::Score::toggleArticulation, symId, TranslatableString("undoableAction", "Toggle articulation"));
+    startEdit(TranslatableString("undoableAction", "Toggle articulation"));
+    mu::engraving::EditChord::toggleArticulation(score(), symId);
+    apply();
 }
 
 void NotationInteraction::toggleOrnament(mu::engraving::SymId symId)
 {
-    execute(&mu::engraving::Score::toggleOrnament, symId, TranslatableString("undoableAction", "Toggle ornament"));
+    startEdit(TranslatableString("undoableAction", "Toggle ornament"));
+    mu::engraving::EditNote::toggleOrnament(score(), symId);
+    apply();
 }
 
 void NotationInteraction::toggleAutoplace(bool all)
@@ -8408,7 +8416,9 @@ void NotationInteraction::insertClef(ClefType type)
 
 void NotationInteraction::changeAccidental(mu::engraving::AccidentalType accidental)
 {
-    execute(&mu::engraving::Score::changeAccidental, accidental, TranslatableString("undoableAction", "Add accidental"));
+    startEdit(TranslatableString("undoableAction", "Add accidental"));
+    mu::engraving::EditNote::changeAccidental(score(), accidental);
+    apply();
 }
 
 void NotationInteraction::transposeSemitone(int steps)

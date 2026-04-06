@@ -64,6 +64,7 @@ public:
     virtual RunMode runMode() const = 0;
     virtual bool noGui() const = 0;
 
+    virtual void showSplash() {}
     virtual void setup() = 0;
     virtual void finish() = 0;
     virtual void restart() = 0;

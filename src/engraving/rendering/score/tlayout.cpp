@@ -1379,6 +1379,7 @@ void TLayout::layoutBracket(const Bracket* item, Bracket::LayoutData* ldata, con
     }
 
     const_cast<Bracket*>(item)->setVisible(item->bi()->visible());
+
     ldata->braceSymbol = item->braceSymbol();
 
     switch (item->bracketType()) {
@@ -1442,12 +1443,13 @@ void TLayout::layoutBracket(const Bracket* item, Bracket::LayoutData* ldata, con
         ldata->bracketWidth = conf.styleAbsolute(Sid::bracketWidth) + conf.styleAbsolute(Sid::bracketDistance);
     }
     break;
-    case BracketType::SQUARE: {
+    case BracketType::SQUARE:
+    {
         double w = conf.styleAbsolute(Sid::staffLineWidth) * .5;
         double x = -w;
         double y = -w;
         double h = (ldata->bracketHeight * 0.5 + w) * 2;
-        w += (.5 * item->spatium() + 3 * w);
+        w += (.5 * item->spatium() + 2 * w);
         ldata->setBbox(RectF(x, y, w, h));
         ldata->shape.add(ldata->bbox());
 
@@ -1467,9 +1469,83 @@ void TLayout::layoutBracket(const Bracket* item, Bracket::LayoutData* ldata, con
         ldata->bracketWidth = 0.67 * conf.styleAbsolute(Sid::bracketWidth) + conf.styleAbsolute(Sid::bracketDistance);
     }
     break;
+    case BracketType::GROUP:
+        layoutGroupBracket(item, ldata, conf);
+        break;
     case BracketType::NO_BRACKET:
         break;
     }
+}
+
+void TLayout::layoutGroupBracket(const Bracket* item, Bracket::LayoutData* ldata, const LayoutConfiguration& conf)
+{
+    BracketItem* bracketItem = item->bracketItem();
+
+    double w = conf.styleAbsolute(Sid::groupBracketLineWidth) * 0.5;
+    double x = 0.0;
+    double y = -w;
+    double h = (ldata->bracketHeight * 0.5 + w) * 2;
+    double width = conf.styleAbsolute(Sid::groupBracketHookLen);
+
+    ldata->bracketWidth = std::max(width, 2 * w);
+
+    Shape shape;
+    shape.add(RectF(x, y, width, h), item);
+    ldata->setShape(shape);
+
+    if (!item->text()) {
+        Text* bracketText = new Text(const_cast<Bracket*>(item), TextStyleType::GROUP_BRACKET);
+        bracketText->setParent(const_cast<Bracket*>(item));
+        bracketText->setSelected(item->selected());
+        bracketText->setGenerated(true);
+        const_cast<Bracket*>(item)->setText(bracketText);
+    }
+
+    Text* text = item->text();
+    text->setVisible(bracketItem->visible() && bracketItem->showText());
+    text->setAlign(Align(text->align().horizontal, AlignV::VCENTER));
+    text->setPosition(AlignH::HCENTER);
+
+    Orientation textOrientation = conf.styleV(Sid::groupBracketTextOrientation).value<Orientation>();
+    text->setTextAngle(textOrientation == Orientation::VERTICAL ? -90.0 : 0.0);
+
+    double textPadding = 0.5 * item->spatium();
+    double bracketHeight = item->ldata()->bbox().height();
+    double minHeight = bracketHeight - 6 * textPadding;
+
+    if (textOrientation == Orientation::HORIZONTAL) {
+        text->setXmlText(item->system()->ldata()->useLongNames() ? bracketItem->longName() : bracketItem->shortName());
+        layoutText(text, text->mutldata());
+    } else {
+        text->setXmlText(bracketItem->longName());
+        layoutText(text, text->mutldata());
+        if (text->ldata()->bbox().height() > minHeight) {
+            text->setXmlText(bracketItem->shortName());
+            layoutText(text, text->mutldata());
+        }
+    }
+
+    text->mutldata()->setPosY(bracketHeight / 2);
+
+    switch (conf.styleV(Sid::groupBracketTextAlign).value<DirectionH>()) {
+    case DirectionH::AUTO:
+    {
+        text->mutldata()->setPosX(0.0);
+        if (text->visible()) {
+            RectF mask = text->ldata()->bbox().translated(text->pos()).padded(textPadding);
+            ldata->setMask(mask);
+        }
+        break;
+    }
+    case DirectionH::LEFT:
+        text->mutldata()->setPosX(-text->mutldata()->bbox().right() - textPadding);
+        break;
+    case DirectionH::RIGHT:
+        text->mutldata()->setPosX(-text->mutldata()->bbox().left() + textPadding);
+    }
+
+    shape.add(text->ldata()->shape().translated(text->pos()));
+    ldata->setShape(shape);
 }
 
 void TLayout::layoutBreath(const Breath* item, Breath::LayoutData* ldata, const LayoutConfiguration& conf)
@@ -1483,11 +1559,18 @@ void TLayout::layoutBreath(const Breath* item, Breath::LayoutData* ldata, const 
 
     const double voiceOffset = item->placeBelow() ? item->staff()->staffHeight(item->tick()) : 0.0;
     if (item->isCaesura()) {
-        ldata->setPosY(item->spatium() + voiceOffset);
+        if (item->symId() == SymId::chantCaesura) {
+            // special handling for chant caesura, which is higher than the normal one
+            ldata->setPosY(1.5 * item->spatium() + voiceOffset);
+        } else {
+            ldata->setPosY(item->symHeight(item->symId()) / 2 + voiceOffset);
+        }
     } else if ((conf.styleSt(Sid::musicalSymbolFont) == "Emmentaler") && (item->symId() == SymId::breathMarkComma)) {
-        ldata->setPosY(0.5 * item->spatium() + voiceOffset);
+        const double shift = item->placeBelow() ? -0.5 * item->spatium() + item->symHeight(item->symId()) : 0.5 * item->spatium();
+        ldata->setPosY(shift + voiceOffset);
     } else {
-        ldata->setPosY(-0.5 * item->spatium() + voiceOffset);
+        const double shift = item->placeBelow() ? 0.5 * item->spatium() + item->symHeight(item->symId()) : -0.5 * item->spatium();
+        ldata->setPosY(shift + voiceOffset);
     }
 
     ldata->setBbox(item->symBbox(item->symId()));
@@ -5800,6 +5883,8 @@ void TLayout::layoutTextLineBaseSegment(TextLineBaseSegment* item, LayoutContext
         item->text()->setXmlText(tl->beginText());
         item->text()->setFamily(tl->beginFontFamily());
         item->text()->setSize(tl->beginFontSize());
+        item->text()->setSymbolScale(tl->beginTextMusicalSymbolsScale());
+        item->text()->setSymbolSize(tl->beginTextMusicSymbolsSize());
         item->text()->setOffset(tl->beginTextOffset() * item->mag());
         item->text()->setAlign(tl->beginTextAlign());
         item->text()->setPosition(tl->beginTextPosition());
@@ -5808,6 +5893,8 @@ void TLayout::layoutTextLineBaseSegment(TextLineBaseSegment* item, LayoutContext
         item->text()->setXmlText(tl->continueText());
         item->text()->setFamily(tl->continueFontFamily());
         item->text()->setSize(tl->continueFontSize());
+        item->text()->setSymbolScale(tl->continueTextMusicalSymbolsScale());
+        item->text()->setSymbolSize(tl->continueTextMusicSymbolsSize());
         item->text()->setOffset(tl->continueTextOffset() * item->mag());
         item->text()->setAlign(tl->continueTextAlign());
         item->text()->setPosition(tl->continueTextPosition());
@@ -5822,6 +5909,8 @@ void TLayout::layoutTextLineBaseSegment(TextLineBaseSegment* item, LayoutContext
         item->endText()->setXmlText(tl->endText());
         item->endText()->setFamily(tl->endFontFamily());
         item->endText()->setSize(tl->endFontSize());
+        item->endText()->setSymbolScale(tl->endTextMusicalSymbolsScale());
+        item->endText()->setSymbolSize(tl->endTextMusicSymbolsSize());
         item->endText()->setOffset(tl->endTextOffset() * item->mag());
         item->endText()->setAlign(tl->endTextAlign());
         item->endText()->setPosition(tl->endTextPosition());

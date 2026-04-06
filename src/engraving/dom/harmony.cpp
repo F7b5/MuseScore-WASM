@@ -325,9 +325,11 @@ const ElementStyle chordSymbolStyle {
 //   Harmony
 //---------------------------------------------------------
 
-Harmony::Harmony(Segment* parent)
+Harmony::Harmony(EngravingItem* parent)
     : TextBase(ElementType::HARMONY, parent, TextStyleType::HARMONY_A, ElementFlag::MOVABLE | ElementFlag::ON_STAFF)
 {
+    assert(!parent || parent->isSegment() || parent->isFretDiagram());
+
     m_rootCase   = NoteCaseType::CAPITAL;
     m_bassCase   = NoteCaseType::CAPITAL;
     m_harmonyType = HarmonyType::STANDARD;
@@ -387,6 +389,10 @@ int Harmony::id() const
 Segment* Harmony::getParentSeg() const
 {
     Segment* seg = nullptr;
+    if (!explicitParent()) {
+        return nullptr;
+    }
+
     if (explicitParent()->isFretDiagram()) {
         // When this harmony is the child of a fret diagram, we need to go up twice
         // to get to the parent seg.

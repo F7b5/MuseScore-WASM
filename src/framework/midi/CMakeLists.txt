@@ -80,3 +80,7 @@ elseif(OS_IS_WASM)
         internal/platform/web/webmidioutport.h
     )
 endif()
+
+if (MUSE_MODULE_MIDI_TESTS)
+   add_subdirectory(tests)
+endif()

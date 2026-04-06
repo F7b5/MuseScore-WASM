@@ -40,6 +40,7 @@
 #include "engraving/dom/spanner.h"
 #include "engraving/dom/staff.h"
 #include "engraving/dom/stafftext.h"
+#include "engraving/dom/tapping.h"
 #include "engraving/dom/tempotext.h"
 #include "engraving/dom/text.h"
 #include "engraving/dom/tie.h"
@@ -51,6 +52,8 @@
 #include "engraving/dom/capo.h"
 #include "engraving/dom/stringtunings.h"
 #include "engraving/types/symid.h"
+
+#include "engraving/editing/editchord.h"
 
 #include "../utils.h"
 #include "../guitarprodrumset.h"
@@ -1813,7 +1816,7 @@ void GPConverter::addOrnament(const GPNote* gpnote, Note* note)
 
     Articulation* art = mu::engraving::Factory::createArticulation(_score->dummy()->chord());
     art->setSymId(scoreOrnament(gpnote->ornament()));
-    if (!_score->toggleArticulation(note, art)) {
+    if (!EditChord::toggleArticulation(_score, note, art)) {
         delete art;
     }
 }
@@ -2671,7 +2674,7 @@ void GPConverter::addFadding(const GPBeat* beat, ChordRest* cr)
 
     Articulation* art = mu::engraving::Factory::createArticulation(_score->dummy()->chord());
     art->setSymId(scoreFadding(beat->fadding()));
-    if (!_score->toggleArticulation(toChord(cr)->upNote(), art)) {
+    if (!EditChord::toggleArticulation(_score, toChord(cr)->upNote(), art)) {
         delete art;
     }
 }
@@ -2701,7 +2704,7 @@ void GPConverter::addPickStroke(const GPBeat* beat, ChordRest* cr)
 
     Articulation* art = mu::engraving::Factory::createArticulation(_score->dummy()->chord());
     art->setSymId(scorePickStroke(beat->pickStroke()));
-    if (!_score->toggleArticulation(toChord(cr)->upNote(), art)) {
+    if (!EditChord::toggleArticulation(_score, toChord(cr)->upNote(), art)) {
         delete art;
     }
 }
@@ -2748,7 +2751,7 @@ void GPConverter::addWah(const GPBeat* beat, ChordRest* cr)
 
     Articulation* art = Factory::createArticulation(_score->dummy()->chord());
     art->setSymId(scoreWah(beat->wah()));
-    if (!_score->toggleArticulation(toChord(cr)->upNote(), art)) {
+    if (!EditChord::toggleArticulation(_score, toChord(cr)->upNote(), art)) {
         delete art;
     }
 }
@@ -2769,7 +2772,7 @@ void GPConverter::addGolpe(const GPBeat* beat, ChordRest* cr)
         art->setAnchor(ArticulationAnchor::BOTTOM);
     }
 
-    if (!_score->toggleArticulation(toChord(cr)->upNote(), art)) {
+    if (!EditChord::toggleArticulation(_score, toChord(cr)->upNote(), art)) {
         delete art;
     }
 }

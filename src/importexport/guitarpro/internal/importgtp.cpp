@@ -61,6 +61,7 @@
 #include "engraving/dom/stafftext.h"
 #include "engraving/dom/stafftype.h"
 #include "engraving/dom/stringdata.h"
+#include "engraving/dom/tapping.h"
 #include "engraving/dom/tempotext.h"
 #include "engraving/dom/text.h"
 #include "engraving/dom/textline.h"
@@ -71,6 +72,8 @@
 #include "engraving/dom/stringtunings.h"
 #include "engraving/rw/xmlwriter.h"
 #include "engraving/types/symid.h"
+
+#include "engraving/editing/editchord.h"
 
 #include "log.h"
 
@@ -2526,7 +2529,7 @@ bool GuitarPro3::read(IODevice* io)
                         art->setSymId(SymId::guitarFadeOut);
                         art->setAnchor(ArticulationAnchor::TOP);
                         art->setPropertyFlags(Pid::ARTICULATION_ANCHOR, PropertyFlags::UNSTYLED);
-                        if (!score->toggleArticulation(cr, art)) {
+                        if (!EditChord::toggleArticulation(score, cr, art)) {
                             delete art;
                         }
                     }

@@ -13,25 +13,13 @@
 #include "thirdparty/kors_logger/src/log_base.h"
 #include "ui/iuiengine.h"
 #include "ui/graphicsapiprovider.h"
-
 #include "appshell/internal/istartupscenario.h"
 
-#include "async/processevents.h"
+#include "global/async/processevents.h"
+#include "commandlineparser.h"
 
 #include "muse_framework_config.h"
 #include "app_config.h"
-
-#ifdef MUE_ENABLE_SPLASHSCREEN
-#include "appshell/widgets/splashscreen/splashscreen.h"
-#else
-namespace mu::appshell {
-class SplashScreen
-{
-public:
-    void close() {}
-};
-}
-#endif
 
 #ifdef QT_CONCURRENT_SUPPORTED
 #include <QThreadPool>
@@ -48,7 +36,7 @@ using namespace mu::appshell;
 static int m_lastId = 0;
 
 GuiApp::GuiApp(const CmdOptions& options)
-    : muse::BaseApplication(), m_options(options)
+    : muse::BaseApplication(), m_appOptions(options)
 {
 }
 
@@ -57,9 +45,48 @@ void GuiApp::addModule(muse::modularity::IModuleSetup* module)
     m_modules.push_back(module);
 }
 
+GuiApp::SplashConfig GuiApp::splashConfig(const CmdOptions& options) const
+{
+    SplashConfig cfg;
+    cfg.type = SplashScreen::Default;
+
+    if (options.startup.type.has_value()) {
+        if (options.startup.type.value() == "start-with-new") {
+            cfg.type = SplashScreen::ForNewInstance;
+            cfg.forNewScore = true;
+        } else if (options.startup.scoreUrl.has_value()) {
+            project::ProjectFile file { options.startup.scoreUrl.value() };
+
+            if (options.startup.scoreDisplayNameOverride.has_value()) {
+                file.displayNameOverride = options.startup.scoreDisplayNameOverride.value();
+            }
+
+            cfg.type = SplashScreen::ForNewInstance;
+            cfg.forNewScore = false;
+            if (file.hasDisplayName()) {
+                cfg.openingFileName = file.displayName(true /* includingExtension */);
+            }
+        } else {
+            cfg.type = SplashScreen::Default;
+        }
+    }
+
+    return cfg;
+}
+
+void GuiApp::showSplash()
+{
+#ifdef MUE_ENABLE_SPLASHSCREEN
+    if (splashConfig(m_appOptions).type == SplashScreen::Default) {
+        m_splashScreen = new SplashScreen(SplashScreen::Default);
+        m_splashScreen->show();
+    }
+#endif
+}
+
 void GuiApp::setup()
 {
-    const CmdOptions& options = m_options;
+    const CmdOptions& options = m_appOptions;
 
     IApplication::RunMode runMode = options.runMode;
     IF_ASSERT_FAILED(runMode == IApplication::RunMode::GuiApp) {
@@ -107,38 +134,6 @@ void GuiApp::setup()
         m->onPreInit(runMode);
     }
 
-    // Process all pending events (see IpcSocket::onReadyRead())
-    // so that we can use isFirstWindow() as early as possible
-    muse::async::processMessages();
-
-//! FIXME
-//! The launch scenario is contextual, but there is no context here.
-#undef MUE_ENABLE_SPLASHSCREEN
-
-#ifdef MUE_ENABLE_SPLASHSCREEN
-    if (multiwindowsProvider()->isFirstWindow()) {
-        m_splashScreen = new SplashScreen(SplashScreen::Default);
-    } else {
-        auto startupScenario = muse::modularity::ioc(iocContext())->resolve<IStartupScenario>("app");
-        const project::ProjectFile& file = startupScenario->startupScoreFile();
-        if (file.isValid()) {
-            if (file.hasDisplayName()) {
-                m_splashScreen = new SplashScreen(SplashScreen::ForNewInstance, false, file.displayName(true /* includingExtension */));
-            } else {
-                m_splashScreen = new SplashScreen(SplashScreen::ForNewInstance, false);
-            }
-        } else if (startupScenario->isStartWithNewFileAsSecondaryInstance()) {
-            m_splashScreen = new SplashScreen(SplashScreen::ForNewInstance, true);
-        } else {
-            m_splashScreen = new SplashScreen(SplashScreen::Default);
-        }
-    }
-
-    if (m_splashScreen) {
-        m_splashScreen->show();
-    }
-#endif
-
     // ====================================================
     // Setup modules: onInit
     // ====================================================
@@ -179,11 +174,7 @@ void GuiApp::setup()
     m_delayedInitTimer.start();
 
     // ====================================================
-    // Run
-    // ====================================================
-
-    // ====================================================
-    // Setup Qml Engine
+    // Setup Graphics Api check
     // ====================================================
     //! Needs to be set because we use transparent windows for PopupView.
     //! Needs to be called before any QQuickWindows are shown.
@@ -277,6 +268,17 @@ size_t GuiApp::contextCount() const
     return m_contexts.size();
 }
 
+void GuiApp::showContextSplash(const muse::modularity::ContextPtr& ctxId)
+{
+ #ifdef MUE_ENABLE_SPLASHSCREEN
+    SplashConfig cfg = splashConfig(context(ctxId).options);
+    if (cfg.type == SplashScreen::ForNewInstance) {
+        m_splashScreen = new SplashScreen(cfg.type, cfg.forNewScore, cfg.openingFileName);
+        m_splashScreen->show();
+    }
+#endif
+}
+
 muse::modularity::ContextPtr GuiApp::setupNewContext(const StringList& args)
 {
 #ifndef MUSE_MODULE_MULTIWINDOWS_SINGLEPROC_MODE
@@ -291,14 +293,49 @@ muse::modularity::ContextPtr GuiApp::setupNewContext(const StringList& args)
     ++m_lastId;
     ctxId->id = m_lastId;
 
-    const CmdOptions& options = m_options;
-    IApplication::RunMode runMode = options.runMode;
-    IF_ASSERT_FAILED(runMode == IApplication::RunMode::GuiApp) {
-        return nullptr;
+    Context& ctx = context(ctxId);
+    ctx.initializing = true;
+
+    LOGI() << "Creating new context with id: " << ctxId->id;
+
+    if (args.size() > 0) {
+        std::vector<std::string> args_ = args.toStdStringList();
+        const int argc = static_cast<int>(args_.size());
+        std::vector<char*> argv(argc + 1, nullptr);
+        for (int i = 0; i < argc; ++i) {
+            argv[i] = args_[i].data();
+        }
+        argv[argc] = nullptr;
+
+        CommandLineParser commandLineParser;
+        commandLineParser.init();
+        commandLineParser.parse(argc, argv.data());
+        ctx.options = commandLineParser.options();
+    } else {
+        ctx.options = m_appOptions;
     }
 
-    LOGI() << "New context created with id: " << ctxId->id;
+    QMetaObject::invokeMethod(qApp, [this, ctxId]() {
+        showContextSplash(ctxId);
+        QMetaObject::invokeMethod(qApp, [this, ctxId]() {
+            setupContext(ctxId);
+            QMetaObject::invokeMethod(qApp, [this, ctxId]() {
+                bool ok = loadMainWindow(ctxId);
+                if (ok) {
+                    QMetaObject::invokeMethod(qApp, [this, ctxId]() {
+                        startupScenario(ctxId);
+                    }, Qt::QueuedConnection);
+                }
+            }, Qt::QueuedConnection);
+        }, Qt::QueuedConnection);
+    }, Qt::QueuedConnection);
 
+    return ctxId;
+}
+
+void GuiApp::setupContext(const muse::modularity::ContextPtr& ctxId)
+{
+    const IApplication::RunMode runMode = m_appOptions.runMode;
     // Setup
     std::vector<muse::modularity::IContextSetup*>& csetups = context(ctxId).setups;
 
@@ -326,8 +363,18 @@ muse::modularity::ContextPtr GuiApp::setupNewContext(const StringList& args)
         LOGI() << "Context setup onAllInited:" << typeid(*s).name();
         s->onAllInited(runMode);
     }
+}
 
-    // Load main window
+bool GuiApp::loadMainWindow(const muse::modularity::ContextPtr& ctxId)
+{
+#if defined(Q_OS_MAC)
+    QString platform = "mac";
+#elif defined(Q_OS_WIN)
+    QString platform = "win";
+#else
+    QString platform = "linux";
+#endif
+
     QQmlApplicationEngine* engine = muse::modularity::ioc(ctxId)->resolve<muse::ui::IUiEngine>("app")->qmlAppEngine();
 
     QObject::connect(engine, &QQmlApplicationEngine::objectCreated, qApp, [](QObject* obj, const QUrl&) {
@@ -355,7 +402,7 @@ muse::modularity::ContextPtr GuiApp::setupNewContext(const StringList& args)
     QQmlComponent component = QQmlComponent(engine, path);
     if (!component.isReady()) {
         LOGE() << "Failed to load main qml file, err: " << component.errorString();
-        return nullptr;
+        return false;
     }
 
     QQmlContext* qmlCtx = new QQmlContext(engine);
@@ -368,75 +415,58 @@ muse::modularity::ContextPtr GuiApp::setupNewContext(const StringList& args)
     if (!obj) {
         LOGE() << "failed Qml load\n";
         QCoreApplication::exit(-1);
-        return nullptr;
+        return false;
     }
 
+    // The main window must be shown at this point so KDDockWidgets can read its size correctly
+    // and scale all sizes properly. https://github.com/musescore/MuseScore/issues/21148
+    // but before that, let's make the window transparent,
+    // otherwise the empty window frame will be visible
+    // https://github.com/musescore/MuseScore/issues/29630
+    // Transparency will be removed after the page loads.
+    Context& ctx = context(ctxId);
+    ctx.window = dynamic_cast<QQuickWindow*>(obj);
+    ctx.window->setOpacity(0.01);
+    ctx.window->setVisible(true);
+
+    return true;
+}
+
+void GuiApp::startupScenario(const muse::modularity::ContextPtr& ctxId)
+{
     auto startupScenario = muse::modularity::ioc(ctxId)->resolve<IStartupScenario>("app");
 
-    //! NOTE Apply startup options from either:
-    //! 1. Direct args (single-process mode: openNewWindow passes args)
-    //! 2. Command line options (multi-process mode: parsed by CommandLineParser)
+    //! NOTE Apply startup options
+    const CmdOptions& options = context(ctxId).options;
 
-    //! Parse known options from args
-    auto sessionTypeIdx = args.indexOf(u"--session-type");
-    if (sessionTypeIdx != muse::nidx && sessionTypeIdx + 1 < args.size()) {
-        startupScenario->setStartupType(args.at(sessionTypeIdx + 1).toStdString());
-    } else if (m_options.startup.type.has_value()) {
-        startupScenario->setStartupType(m_options.startup.type.value());
+    startupScenario->setStartupType(options.startup.type);
+
+    if (options.startup.scoreUrl.has_value()) {
+        project::ProjectFile file = { options.startup.scoreUrl.value() };
+
+        if (options.startup.scoreDisplayNameOverride.has_value()) {
+            file.displayNameOverride = options.startup.scoreDisplayNameOverride.value();
+        }
+
+        startupScenario->setStartupScoreFile(file);
     }
 
-    //! Find the first positional argument (not starting with "--") to use as score file
-    muse::String scoreArg;
-    for (size_t i = 0; i < args.size(); ++i) {
-        if (args.at(i).startsWith(u"--")) {
-            ++i; // skip the option's value
-            continue;
-        }
-        scoreArg = args.at(i);
-        break;
-    }
-
-    project::ProjectFile file;
-    if (!scoreArg.isEmpty()) {
-        file = { QUrl::fromUserInput(scoreArg.toQString(), QDir::currentPath(), QUrl::AssumeLocalFile) };
-
-        size_t dnIdx = args.indexOf(u"--score-display-name-override");
-        if (dnIdx != muse::nidx && dnIdx + 1 < args.size()) {
-            file.displayNameOverride = args.at(dnIdx + 1);
-        }
-    } else if (m_options.startup.scoreUrl.has_value()) {
-        file = { m_options.startup.scoreUrl.value() };
-
-        if (m_options.startup.scoreDisplayNameOverride.has_value()) {
-            file.displayNameOverride = m_options.startup.scoreDisplayNameOverride.value();
-        }
-    }
-
-    startupScenario->setStartupScoreFile(file);
     startupScenario->runOnSplashScreen();
 
-    QMetaObject::invokeMethod(qApp, [this, ctxId, obj, startupScenario]() {
+    QMetaObject::invokeMethod(qApp, [this, ctxId, startupScenario]() {
+#ifdef MUE_ENABLE_SPLASHSCREEN
         if (m_splashScreen) {
             m_splashScreen->close();
             delete m_splashScreen;
             m_splashScreen = nullptr;
         }
-
-        // The main window must be shown at this point so KDDockWidgets can read its size correctly
-        // and scale all sizes properly. https://github.com/musescore/MuseScore/issues/21148
-        // but before that, let's make the window transparent,
-        // otherwise the empty window frame will be visible
-        // https://github.com/musescore/MuseScore/issues/29630
-        // Transparency will be removed after the page loads.
-        Context& ctx = context(ctxId);
-        ctx.window = dynamic_cast<QQuickWindow*>(obj);
-        ctx.window->setOpacity(0.01);
-        ctx.window->setVisible(true);
+#endif
 
         startupScenario->runAfterSplashScreen();
-    }, Qt::QueuedConnection);
 
-    return ctxId;
+        Context& ctx = context(ctxId);
+        ctx.initializing = false;
+    }, Qt::QueuedConnection);
 }
 
 void GuiApp::destroyContext(const modularity::ContextPtr& ctx)
@@ -453,6 +483,12 @@ void GuiApp::destroyContext(const modularity::ContextPtr& ctx)
                            [&ctx](const Context& c) { return c.ctx->id == ctx->id; });
     if (it == m_contexts.end()) {
         LOGW() << "Context not found: " << ctx->id;
+        return;
+    }
+
+    //! The context is in the process of initializing.
+    //! It is not possible to delete the context until initialization is complete.
+    IF_ASSERT_FAILED(!it->initializing) {
         return;
     }
 
@@ -539,18 +575,6 @@ void GuiApp::applyCommandLineOptions(const CmdOptions& options)
         if (options.guitarPro.linkedTabStaffCreated) {
             guitarProConfiguration()->setLinkedTabStaffCreated(true);
         }
-    }
-
-    // startupScenario()->setStartupType(options.startup.type);
-
-    if (options.startup.scoreUrl.has_value()) {
-        project::ProjectFile file { options.startup.scoreUrl.value() };
-
-        if (options.startup.scoreDisplayNameOverride.has_value()) {
-            file.displayNameOverride = options.startup.scoreDisplayNameOverride.value();
-        }
-
-        // startupScenario()->setStartupScoreFile(file);
     }
 
     if (options.app.loggerLevel) {

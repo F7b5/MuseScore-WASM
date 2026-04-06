@@ -918,6 +918,7 @@ void TWrite::write(const Bracket* item, XmlWriter& xml, WriteContext& ctx)
     case BracketType::BRACE:
     case BracketType::SQUARE:
     case BracketType::LINE:
+    case BracketType::GROUP:
     {
         xml.startElement(item, { { "type", TConv::toXml(item->bracketItem()->bracketType()) } });
         isStartTag = true;
@@ -1833,6 +1834,7 @@ void TWrite::write(const Harmony* item, XmlWriter& xml, WriteContext& ctx)
     }
 
     writeProperty(item, xml, Pid::HARMONY_DO_NOT_STACK_MODIFIERS);
+    writeProperty(item, xml, Pid::EXCLUDE_VERTICAL_ALIGN);
     writeProperties(toTextBase(item), xml, ctx, false);
     //Pid::HARMONY_VOICE_LITERAL, Pid::HARMONY_VOICING, Pid::HARMONY_DURATION
     //written by the above function call because they are part of element style
@@ -2873,21 +2875,7 @@ void TWrite::write(const Staff* item, XmlWriter& xml, WriteContext& ctx)
     }
 
     for (const BracketItem* i : item->brackets()) {
-        BracketType a = i->bracketType();
-        size_t b = i->bracketSpan();
-        if (a == BracketType::NO_BRACKET || b == 0) {
-            continue;
-        }
-        XmlWriter::Attributes attrs = {
-            { "type", static_cast<int>(a) },
-            { "span", b },
-            { "col", i->column() },
-            { "visible", i->visible() }
-        };
-        if (i->color() != ctx.configuration()->defaultColor()) {
-            attrs.push_back({ "color", String::fromStdString(i->color().toString()) });
-        }
-        xml.tag("bracket", attrs);
+        write(i, xml);
     }
 
     writeProperty(item, xml, Pid::STAFF_BARLINE_SPAN);
@@ -2899,6 +2887,28 @@ void TWrite::write(const Staff* item, XmlWriter& xml, WriteContext& ctx)
     writeProperty(item, xml, Pid::PLAYBACK_VOICE3);
     writeProperty(item, xml, Pid::PLAYBACK_VOICE4);
     writeProperty(item, xml, Pid::SHOW_MEASURE_NUMBERS);
+
+    xml.endElement();
+}
+
+void TWrite::write(const BracketItem* item, XmlWriter& xml)
+{
+    if (item->bracketType() == BracketType::NO_BRACKET) {
+        return;
+    }
+
+    xml.startElement(item);
+
+    xml.tag("type", TConv::toXml(item->bracketType()));
+    writeProperty(item, xml, Pid::BRACKET_SPAN, /*force*/ true);
+    writeProperty(item, xml, Pid::BRACKET_COLUMN, /*force*/ true);
+    writeProperty(item, xml, Pid::VISIBLE);
+
+    if (item->bracketType() == BracketType::GROUP) {
+        writeProperty(item, xml, Pid::GROUP_BRACKET_SHOW_TEXT);
+        writeProperty(item, xml, Pid::GROUP_BRACKET_SHOW_BRACKET);
+        write(item->label(), xml);
+    }
 
     xml.endElement();
 }
