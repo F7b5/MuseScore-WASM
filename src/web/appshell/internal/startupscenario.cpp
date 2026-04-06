@@ -21,6 +21,10 @@
  */
 #include "startupscenario.h"
 
+#ifdef Q_OS_WASM
+#include <emscripten/val.h>
+#endif
+
 #include "log.h"
 
 using namespace muse;
@@ -53,14 +57,29 @@ void StartupScenario::runOnSplashScreen()
 void StartupScenario::runAfterSplashScreen()
 {
     interactive()->open("musescore://notation").onResolve(this, [this](const Val&) {
-        // Project loading is driven by the JS bridge (createMuApi):
-        //   - if scoreData was passed, JS calls _load() once Qt is ready
-        //   - otherwise JS calls _newProject() to open the new score dialog
-        // So nothing to dispatch here.
         if (m_startupScoreFile.isValid()) {
             dispatcher()->dispatch("file-open", muse::actions::ActionData::make_arg2<QUrl, QString>(
                                        m_startupScoreFile.url, m_startupScoreFile.displayNameOverride));
         }
+
+        // Notify the JS bridge that the notation page is open and the
+        // dispatcher is ready. The JS layer (createMuApi) decides whether
+        // to load a provided score or open the new score dialog.
+        //
+        // We always set Module._appReady = true so a JS handler installed
+        // after this point can detect the missed signal and run itself.
+#ifdef Q_OS_WASM
+        emscripten::val module = emscripten::val::global("Module");
+        if (!module.isUndefined() && !module.isNull()) {
+            module.set("_appReady", true);
+        }
+
+        emscripten::val onAppReady = emscripten::val::module_property("onAppReady");
+        if (!onAppReady.isUndefined() && !onAppReady.isNull()) {
+            onAppReady();
+        }
+#endif
+
         m_startupCompleted = true;
     });
 }

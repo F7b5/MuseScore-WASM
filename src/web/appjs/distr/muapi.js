@@ -48,29 +48,34 @@ async function createMuApi(config) {
         config.soundFont = window.location.origin + "/wasm/" + DEFAULT_SOUNDFONT
     }
 
-    // After Qt is ready, the JS layer is responsible for opening either:
-    //   - the provided scoreData (named via scoreName, used as the tab name), or
-    //   - the new score dialog when scoreData is absent.
-    // Must wrap before loadModule, since loadModule captures config.onLoaded.
-    {
-        const origOnLoaded = config.onLoaded
-        config.onLoaded = function() {
-            if (config.scoreData) {
-                const data = config.scoreData instanceof Uint8Array
-                    ? config.scoreData
-                    : new Uint8Array(config.scoreData)
-                MuImpl.loadScoreData(data, config.scoreName)
-            } else {
-                MuImpl.newProject()
-            }
+    MuApi.Module = await MuImpl.loadModule(config)
 
-            if (origOnLoaded) {
-                origOnLoaded()
-            }
+    // C++ StartupScenario fires onAppReady once the notation page is open
+    // and the dispatcher is ready. That's when it's safe to load a score
+    // or open the new score dialog — calling these from onLoaded /
+    // onRuntimeInitialized is too early (main() hasn't finished setup).
+    // C++ also sets Module._appReady=true so we can detect a missed signal.
+    const handleAppReady = function() {
+        if (config.scoreData) {
+            const data = config.scoreData instanceof Uint8Array
+                ? config.scoreData
+                : new Uint8Array(config.scoreData)
+            MuImpl.loadScoreData(data, config.scoreName)
+        } else {
+            MuImpl.newProject()
+        }
+
+        if (config.onAppReady) {
+            config.onAppReady()
         }
     }
 
-    MuApi.Module = await MuImpl.loadModule(config)
+    MuApi.Module.onAppReady = handleAppReady
+
+    // If C++ already fired onAppReady before we got here, replay it now.
+    if (MuApi.Module._appReady) {
+        handleAppReady()
+    }
 
     // Wire C++ callbacks straight through to consumer config callbacks.
     MuApi.Module.onSave = function(data) {
