@@ -28,7 +28,10 @@ using namespace mu::appjs;
 
 extern "C" {
 EMSCRIPTEN_KEEPALIVE
-void load(const void* source, unsigned int len) { WebApi::instance()->load(source, len); }
+void load(const char* name, const void* source, unsigned int len) { WebApi::instance()->load(name, source, len); }
+
+EMSCRIPTEN_KEEPALIVE
+void newProject() { WebApi::instance()->newProject(); }
 
 EMSCRIPTEN_KEEPALIVE
 void addSoundFont(const char* uri)

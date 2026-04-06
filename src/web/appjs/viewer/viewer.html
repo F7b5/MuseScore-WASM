@@ -70,15 +70,15 @@ SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
       }
       #spinner {
         display: flex;
-        justify-content: center; /* горизонтальное выравнивание */
-        align-items: center;     /* вертикальное выравнивание */
-        height: 100vh;           /* на всю высоту viewport */
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
       }
-      #panel { 
-        width: 100%; 
-        height: 40px; 
-        background-color: #f0f0f0; 
-        display: flex; 
+      #panel {
+        width: 100%;
+        height: 40px;
+        background-color: #f0f0f0;
+        display: flex;
         align-items: center;
         padding: 2px 5px;
         box-sizing: border-box;
@@ -114,13 +114,6 @@ SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
     </figure>
 
     <div id="screen"></div>
-
-    <!-- <div id="panel">
-      <button onclick="onclickTest1()">Test 1</button>
-      <button>Test 2</button>
-      <button>Test 3</button>
-      <input id="load_file" type="file" onchange="window.muapi.loadScoreFile(this.files[0])">
-    </div> -->
 
     <script type="module">
       import createMuApi from "./distr/muapi.js";
@@ -159,8 +152,15 @@ SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
           showUi(spinner);
           status.innerHTML = 'Loading...';
 
+          // Read file data upfront so we can pass it via scoreData
+          const fileBuffer = await selectedFile.arrayBuffer();
+
           window.muapi = await createMuApi({
             screen: screen,
+            // Pass score data directly — loaded automatically when Qt is ready.
+            // scoreName becomes the tab title.
+            scoreData: new Uint8Array(fileBuffer),
+            scoreName: selectedFile.name.replace(/\.(mscz|mscx|musicxml|xml|mid|midi)$/i, ''),
             onLoaded: () => {
               showUi(screen);
             },
@@ -170,12 +170,14 @@ SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
               status.innerHTML += exitData.text !== undefined ? ` (${exitData.text})` : '';
               showUi(spinner);
             },
-            onProjectSaved: function(data) {
-              console.log("[html] onProjectSaved len: ", data.length)
-            }
+            onSave: function(data) {
+              console.log("[html] onSave len:", data.length)
+            },
+            onSaveRaw: function(data) {
+              console.log("[html] onSaveRaw (XML) len:", data.length)
+            },
           });
 
-          await window.muapi.loadScoreFile(selectedFile);
           document.addEventListener('click', window.muapi.startAudioProcessing, { once: true });
         } catch (e) {
           isLaunching = false;
@@ -187,6 +189,6 @@ SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
         }
       });
     </script>
-    <script src="MuseScoreStudio.js"></script> 
+    <script src="MuseScoreStudio.js"></script>
   </body>
 </html>

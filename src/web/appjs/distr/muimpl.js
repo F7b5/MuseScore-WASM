@@ -185,20 +185,24 @@ const MuImpl = {
         }
     },
 
-    loadScoreFile: async function(file) {
+    loadScoreFile: async function(file, name) {
         if (!file) {
             return
         }
 
         const buffer = await file.arrayBuffer();
-        this.loadScoreData(new Uint8Array(buffer)) 
+        this.loadScoreData(new Uint8Array(buffer), name || file.name)
     },
 
-    loadScoreData: function(data) {
+    loadScoreData: function(data, name) {
         const ptr = this.Module._malloc(data.length);
         this.Module.HEAPU8.set(data, ptr);
-        this.Module._load(ptr, data.length);
+        this.Module.ccall('load', null, ['string', 'number', 'number'], [name || 'score', ptr, data.length]);
         this.Module._free(ptr);
+    },
+
+    newProject: function() {
+        this.Module._newProject();
     },
 
     startAudioProcessing: async function() {

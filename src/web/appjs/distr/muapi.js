@@ -3,16 +3,17 @@ import MuImpl from "./muimpl.js"
 const DEFAULT_SOUNDFONT = "sound/MS%20Basic.sf3"
 
 const MuApi = {
-    _onSave: null,
-
     // Load score
-    loadScoreFile: MuImpl.loadScoreFile,
-    loadScoreData: MuImpl.loadScoreData,
+    loadScoreFile: MuImpl.loadScoreFile.bind(MuImpl),
+    loadScoreData: MuImpl.loadScoreData.bind(MuImpl),
+
+    // Open the new score dialog (name → instrument → opened)
+    newProject: MuImpl.newProject.bind(MuImpl),
 
     // Start audio
     startAudioProcessing: MuImpl.startAudioProcessing.bind(MuImpl),
 
-    // Trigger the app's regular save action
+    // Trigger the app's regular save action — fires onSave callback
     save: function() {
         if (MuApi.Module) {
             MuApi.Module._save();
@@ -33,12 +34,7 @@ const MuApi = {
         return MuApi.Module.ccall('projectTitle', 'string', [], []) || "";
     },
 
-    // Register a handler that receives the saved .mscz project bytes
-    registerOnSave: function(handler) {
-        MuApi._onSave = handler;
-    },
-
-    // Serialize current project as .mscs XML — calls onProjectSerialized callback
+    // Serialize current project as .mscs XML — fires onSaveRaw callback
     serializeAsXml: function() {
         if (MuApi.Module) {
             MuApi.Module._serializeAsXml();
@@ -52,27 +48,40 @@ async function createMuApi(config) {
         config.soundFont = window.location.origin + "/wasm/" + DEFAULT_SOUNDFONT
     }
 
-    MuApi.Module = await MuImpl.loadModule(config)
+    // After Qt is ready, the JS layer is responsible for opening either:
+    //   - the provided scoreData (named via scoreName, used as the tab name), or
+    //   - the new score dialog when scoreData is absent.
+    // Must wrap before loadModule, since loadModule captures config.onLoaded.
+    {
+        const origOnLoaded = config.onLoaded
+        config.onLoaded = function() {
+            if (config.scoreData) {
+                const data = config.scoreData instanceof Uint8Array
+                    ? config.scoreData
+                    : new Uint8Array(config.scoreData)
+                MuImpl.loadScoreData(data, config.scoreName)
+            } else {
+                MuImpl.newProject()
+            }
 
-    MuApi.Module.onProjectSaved = function(data) {
-        console.log("[js muapi internal] onProjectSaved len: ", data.length)
-        if (config.onProjectSaved) {
-            config.onProjectSaved(data)
+            if (origOnLoaded) {
+                origOnLoaded()
+            }
         }
     }
 
+    MuApi.Module = await MuImpl.loadModule(config)
+
+    // Wire C++ callbacks straight through to consumer config callbacks.
     MuApi.Module.onSave = function(data) {
-        if (MuApi._onSave) {
-            MuApi._onSave(data)
-        }
         if (config.onSave) {
             config.onSave(data)
         }
     }
 
-    MuApi.Module.onProjectSerialized = function(data) {
-        if (config.onProjectSerialized) {
-            config.onProjectSerialized(data)
+    MuApi.Module.onSaveRaw = function(data) {
+        if (config.onSaveRaw) {
+            config.onSaveRaw(data)
         }
     }
 
@@ -80,10 +89,6 @@ async function createMuApi(config) {
         if (config.onNeedSave) {
             config.onNeedSave(needSave)
         }
-    }
-
-    if (config.onSave) {
-        MuApi.registerOnSave(config.onSave)
     }
 
     return MuApi

@@ -53,11 +53,13 @@ void StartupScenario::runOnSplashScreen()
 void StartupScenario::runAfterSplashScreen()
 {
     interactive()->open("musescore://notation").onResolve(this, [this](const Val&) {
+        // Project loading is driven by the JS bridge (createMuApi):
+        //   - if scoreData was passed, JS calls _load() once Qt is ready
+        //   - otherwise JS calls _newProject() to open the new score dialog
+        // So nothing to dispatch here.
         if (m_startupScoreFile.isValid()) {
             dispatcher()->dispatch("file-open", muse::actions::ActionData::make_arg2<QUrl, QString>(
                                        m_startupScoreFile.url, m_startupScoreFile.displayNameOverride));
-        } else {
-            dispatcher()->dispatch("file-new");
         }
         m_startupCompleted = true;
     });

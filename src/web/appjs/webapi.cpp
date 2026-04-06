@@ -27,6 +27,7 @@
 #endif
 
 #include <QBuffer>
+#include <QRegularExpression>
 
 #include "global/io/file.h"
 
@@ -88,11 +89,18 @@ void WebApi::deinit()
 {
 }
 
-void WebApi::load(const void* source, unsigned int len)
+void WebApi::load(const char* name, const void* source, unsigned int len)
 {
-    LOGI() << source << ", len: " << len;
+    LOGI() << "name: " << (name ? name : "<null>") << ", len: " << len;
     ByteArray data = ByteArray::fromRawData(reinterpret_cast<const char*>(source), len);
-    io::path_t tempFilePath = "/mu/temp/current.mscz";
+
+    QString safeName = QString::fromUtf8(name && *name ? name : "score");
+    safeName.replace(QRegularExpression("[^A-Za-z0-9._-]"), "_");
+    if (!safeName.endsWith(".mscz", Qt::CaseInsensitive)) {
+        safeName += ".mscz";
+    }
+
+    io::path_t tempFilePath = io::path_t(QString("/mu/temp/") + safeName);
 
     //! NOTE Remove last previous
     io::File::remove(tempFilePath);
@@ -101,6 +109,11 @@ void WebApi::load(const void* source, unsigned int len)
     io::File::writeFile(tempFilePath, data);
 
     dispatcher()->dispatch("file-open", actions::ActionData::make_arg1(QUrl::fromLocalFile(tempFilePath.toQString())));
+}
+
+void WebApi::newProject()
+{
+    dispatcher()->dispatch("file-new");
 }
 
 void WebApi::addSoundFont(const std::string& uri)
@@ -139,23 +152,12 @@ std::string WebApi::projectTitle() const
 
 void WebApi::onProjectSaved(const muse::io::path_t& path, mu::project::SaveMode mode)
 {
+    (void)path;
+
     if (m_isSerializingProject || mode == project::SaveMode::SaveCopy) {
         return;
     }
 
-    IF_ASSERT_FAILED(io::File::exists(path)) {
-        LOGE() << "file does not exist, path: " << path;
-        return;
-    }
-
-    ByteArray data;
-    Ret ret  = io::File::readFile(path, data);
-    if (!ret) {
-        LOGE() << "failed read file, path: " << path;
-        return;
-    }
-
-    callJsWithBytes("onProjectSaved", data.constData(), data.size());
     emitSavedProject("onSave");
 }
 
@@ -226,5 +228,5 @@ void WebApi::emitSerializedProject(const char* callbackName)
 
 void WebApi::serializeAsXml()
 {
-    emitSerializedProject("onProjectSerialized");
+    emitSerializedProject("onSaveRaw");
 }
