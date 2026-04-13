@@ -68,6 +68,7 @@ void WebApi::init(const muse::modularity::ContextPtr& iocCtx)
 
     auto onProjectChanged = [this]() {
         m_currentProject = globalContext()->currentProject();
+        LOGI() << "[webapi] currentProjectChanged — project " << (m_currentProject ? "set" : "cleared");
 
         if (m_currentProject) {
             m_currentProject->saveComplited().onReceive(this, [this](const muse::io::path_t& path, project::SaveMode mode) {
@@ -140,6 +141,7 @@ void WebApi::loadRaw(const char* name, const void* source, unsigned int len)
 
 void WebApi::newProject()
 {
+    LOGI() << "[webapi] newProject() — dispatching file-new";
     dispatcher()->dispatch("file-new");
 }
 

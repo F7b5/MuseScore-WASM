@@ -68,15 +68,20 @@ void StartupScenario::runAfterSplashScreen()
         //
         // We always set Module._appReady = true so a JS handler installed
         // after this point can detect the missed signal and run itself.
+        // NOTE: use EM_ASM / module_property — NOT emscripten::val::global("Module").
+        // In a MODULARIZE build global("Module") is the factory function, not the
+        // running instance. module_property() and EM_ASM's Module both target the
+        // actual instance.
 #ifdef Q_OS_WASM
-        emscripten::val module = emscripten::val::global("Module");
-        if (!module.isUndefined() && !module.isNull()) {
-            module.set("_appReady", true);
-        }
+        LOGI() << "[startupscenario] notation page open — firing onAppReady";
+        EM_ASM({ Module['_appReady'] = true; });
 
         emscripten::val onAppReady = emscripten::val::module_property("onAppReady");
         if (!onAppReady.isUndefined() && !onAppReady.isNull()) {
+            LOGI() << "[startupscenario] onAppReady callback is set — calling it";
             onAppReady();
+        } else {
+            LOGW() << "[startupscenario] onAppReady not set on Module — JS will poll _appReady";
         }
 #endif
 

@@ -59,17 +59,22 @@ async function createMuApi(config) {
     // onRuntimeInitialized is too early (main() hasn't finished setup).
     // C++ also sets Module._appReady=true so we can detect a missed signal.
     const handleAppReady = function() {
+        console.log('[muapi] handleAppReady fired — scoreData:', !!config.scoreData,
+                    '| rawScoreData:', !!config.rawScoreData)
         if (config.rawScoreData) {
+            console.log('[muapi] loading rawScoreData (XML)')
             const data = config.rawScoreData instanceof Uint8Array
                 ? config.rawScoreData
                 : new Uint8Array(config.rawScoreData)
             MuImpl.loadRawData(data, config.scoreName)
         } else if (config.scoreData) {
+            console.log('[muapi] loading scoreData (.mscz), scoreName:', config.scoreName)
             const data = config.scoreData instanceof Uint8Array
                 ? config.scoreData
                 : new Uint8Array(config.scoreData)
             MuImpl.loadScoreData(data, config.scoreName)
         } else {
+            console.log('[muapi] no scoreData — opening new-score wizard')
             MuImpl.newProject()
         }
 
@@ -79,9 +84,13 @@ async function createMuApi(config) {
     }
 
     MuApi.Module.onAppReady = handleAppReady
+    console.log('[muapi] Module.onAppReady registered, _appReady=', !!MuApi.Module._appReady)
 
     // If C++ already fired onAppReady before we got here, replay it now.
+    // NOTE: _appReady is set via EM_ASM({ Module['_appReady'] = true }), which
+    // targets the correct module instance (not the MODULARIZE factory).
     if (MuApi.Module._appReady) {
+        console.log('[muapi] _appReady already true — replaying handleAppReady')
         handleAppReady()
     }
 
@@ -105,6 +114,7 @@ async function createMuApi(config) {
     }
 
     MuApi.Module.onTitleChanged = function(title) {
+        console.log('[muapi] onTitleChanged:', title)
         if (config.onTitleChanged) {
             config.onTitleChanged(title)
         }

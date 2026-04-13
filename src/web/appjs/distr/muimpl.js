@@ -195,6 +195,7 @@ const MuImpl = {
     },
 
     loadScoreData: function(data, name) {
+        console.log('[muimpl] loadScoreData — name:', name, 'bytes:', data.length)
         const ptr = this.Module._malloc(data.length);
         this.Module.HEAPU8.set(data, ptr);
         this.Module.ccall('load', null, ['string', 'number', 'number'], [name || 'score', ptr, data.length]);
@@ -203,6 +204,7 @@ const MuImpl = {
 
     // Load from raw .mscx XML bytes — C++ writes to a .mscx temp file and opens it.
     loadRawData: function(data, name) {
+        console.log('[muimpl] loadRawData — name:', name, 'bytes:', data.length)
         const ptr = this.Module._malloc(data.length);
         this.Module.HEAPU8.set(data, ptr);
         this.Module.ccall('loadRaw', null, ['string', 'number', 'number'], [name || 'score', ptr, data.length]);
@@ -210,6 +212,7 @@ const MuImpl = {
     },
 
     newProject: function() {
+        console.log('[muimpl] newProject() — calling Module._newProject()')
         this.Module._newProject();
     },
 
