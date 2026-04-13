@@ -47,6 +47,7 @@ public:
     void deinit();
 
     void load(const char* name, const void* source, unsigned int len);
+    void loadRaw(const char* name, const void* source, unsigned int len);
     void newProject();
     void addSoundFont(const std::string& uri);
     void startAudioProcessing();

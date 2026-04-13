@@ -201,6 +201,14 @@ const MuImpl = {
         this.Module._free(ptr);
     },
 
+    // Load from raw .mscx XML bytes — C++ writes to a .mscx temp file and opens it.
+    loadRawData: function(data, name) {
+        const ptr = this.Module._malloc(data.length);
+        this.Module.HEAPU8.set(data, ptr);
+        this.Module.ccall('loadRaw', null, ['string', 'number', 'number'], [name || 'score', ptr, data.length]);
+        this.Module._free(ptr);
+    },
+
     newProject: function() {
         this.Module._newProject();
     },

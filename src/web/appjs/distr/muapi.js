@@ -3,9 +3,12 @@ import MuImpl from "./muimpl.js"
 const DEFAULT_SOUNDFONT = "sound/MS%20Basic.sf3"
 
 const MuApi = {
-    // Load score
+    // Load score (.mscz binary)
     loadScoreFile: MuImpl.loadScoreFile.bind(MuImpl),
     loadScoreData: MuImpl.loadScoreData.bind(MuImpl),
+
+    // Load score from raw .mscx XML bytes
+    loadRawData: MuImpl.loadRawData.bind(MuImpl),
 
     // Open the new score dialog (name → instrument → opened)
     newProject: MuImpl.newProject.bind(MuImpl),
@@ -56,7 +59,12 @@ async function createMuApi(config) {
     // onRuntimeInitialized is too early (main() hasn't finished setup).
     // C++ also sets Module._appReady=true so we can detect a missed signal.
     const handleAppReady = function() {
-        if (config.scoreData) {
+        if (config.rawScoreData) {
+            const data = config.rawScoreData instanceof Uint8Array
+                ? config.rawScoreData
+                : new Uint8Array(config.rawScoreData)
+            MuImpl.loadRawData(data, config.scoreName)
+        } else if (config.scoreData) {
             const data = config.scoreData instanceof Uint8Array
                 ? config.scoreData
                 : new Uint8Array(config.scoreData)

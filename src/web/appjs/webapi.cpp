@@ -119,6 +119,25 @@ void WebApi::load(const char* name, const void* source, unsigned int len)
     dispatcher()->dispatch("file-open", actions::ActionData::make_arg1(QUrl::fromLocalFile(tempFilePath.toQString())));
 }
 
+void WebApi::loadRaw(const char* name, const void* source, unsigned int len)
+{
+    LOGI() << "loadRaw name: " << (name ? name : "<null>") << ", len: " << len;
+    ByteArray data = ByteArray::fromRawData(reinterpret_cast<const char*>(source), len);
+
+    QString safeName = QString::fromUtf8(name && *name ? name : "score");
+    safeName.replace(QRegularExpression("[^A-Za-z0-9._-]"), "_");
+    if (!safeName.endsWith(".mscx", Qt::CaseInsensitive)) {
+        safeName += ".mscx";
+    }
+
+    io::path_t tempFilePath = io::path_t(QString("/mu/temp/") + safeName);
+
+    io::File::remove(tempFilePath);
+    io::File::writeFile(tempFilePath, data);
+
+    dispatcher()->dispatch("file-open", actions::ActionData::make_arg1(QUrl::fromLocalFile(tempFilePath.toQString())));
+}
+
 void WebApi::newProject()
 {
     dispatcher()->dispatch("file-new");
