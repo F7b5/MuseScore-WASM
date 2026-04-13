@@ -16,7 +16,9 @@
 #include "appshell/internal/istartupscenario.h"
 
 #include "global/async/processevents.h"
+#ifdef MUE_ENABLE_CONSOLEAPP
 #include "commandlineparser.h"
+#endif
 
 #include "muse_framework_config.h"
 #include "app_config.h"
@@ -298,6 +300,7 @@ muse::modularity::ContextPtr GuiApp::setupNewContext(const StringList& args)
 
     LOGI() << "Creating new context with id: " << ctxId->id;
 
+#ifdef MUE_ENABLE_CONSOLEAPP
     if (args.size() > 0) {
         std::vector<std::string> args_ = args.toStdStringList();
         const int argc = static_cast<int>(args_.size());
@@ -314,6 +317,9 @@ muse::modularity::ContextPtr GuiApp::setupNewContext(const StringList& args)
     } else {
         ctx.options = m_appOptions;
     }
+#else
+    ctx.options = m_appOptions;
+#endif
 
     QMetaObject::invokeMethod(qApp, [this, ctxId]() {
         showContextSplash(ctxId);
