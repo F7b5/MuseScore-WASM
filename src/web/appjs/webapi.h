@@ -63,6 +63,7 @@ private:
     void emitSerializedProject(const char* callbackName);
     void onProjectSaved(const muse::io::path_t& path, mu::project::SaveMode mode);
     void onNeedSaveChanged();
+    void onProjectTitleChanged();
 
     project::INotationProjectPtr m_currentProject;
     bool m_isSerializingProject = false;

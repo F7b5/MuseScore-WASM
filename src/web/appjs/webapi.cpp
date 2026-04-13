@@ -77,6 +77,14 @@ void WebApi::init(const muse::modularity::ContextPtr& iocCtx)
             m_currentProject->needSave().notification.onNotify(this, [this]() {
                 onNeedSaveChanged();
             });
+
+            m_currentProject->displayNameChanged().onNotify(this, [this]() {
+                onProjectTitleChanged();
+            });
+
+            // Notify immediately so the JS layer gets the title as soon as
+            // the project is opened (including after the new-score wizard).
+            onProjectTitleChanged();
         }
     };
 
@@ -171,6 +179,15 @@ void WebApi::onNeedSaveChanged()
 
 #ifdef Q_OS_WASM
     emscripten::val::module_property("onNeedSave")(needSave);
+#endif
+}
+
+void WebApi::onProjectTitleChanged()
+{
+    std::string title = projectTitle();
+
+#ifdef Q_OS_WASM
+    emscripten::val::module_property("onTitleChanged")(title);
 #endif
 }
 

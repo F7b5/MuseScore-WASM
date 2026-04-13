@@ -96,6 +96,12 @@ async function createMuApi(config) {
         }
     }
 
+    MuApi.Module.onTitleChanged = function(title) {
+        if (config.onTitleChanged) {
+            config.onTitleChanged(title)
+        }
+    }
+
     return MuApi
 }
 
