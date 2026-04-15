@@ -786,6 +786,14 @@ void NotationActionController::toggleNoteInputMethod(NoteInputMethod method)
         return;
     }
 
+    // A toolbar click while a text frame is being edited should end the edit
+    // first, then switch — not silently do nothing.
+    auto interaction = currentNotationInteraction();
+    if (interaction && interaction->isEditingElement()) {
+        LOGI() << "[noteinput] toggleNoteInputMethod — ending active element edit before switching";
+        interaction->endEditElement();
+    }
+
     LOGI() << "[noteinput] current isNoteInputMode=" << noteInput->isNoteInputMode()
            << " usingRequestedMethod=" << noteInput->usingNoteInputMethod(method);
 
@@ -2267,20 +2275,35 @@ bool NotationActionController::toggleNoteInputAllowed() const
     }
 
     //! NOTE: We're more strict about starting note input mode than exiting it.
+    //! Exception: a toolbar click should still toggle — callers are expected
+    //! to end the active edit explicitly (see toggleNoteInputMethod).
     if (!isNoteInputMode() && isEditingElement()) {
-        LOGI() << "[noteinput] toggleNoteInputAllowed=false (not-in-note-input-mode but editing an element)";
-        return false;
+        const INavigationControl* activeCtrl = navigationController()->activeControl();
+        bool fromNoteInputToolbar = activeCtrl && activeCtrl->name().startsWith("note-input");
+        if (!fromNoteInputToolbar) {
+            LOGI() << "[noteinput] toggleNoteInputAllowed=false (not-in-note-input-mode but editing an element; "
+                      "activeCtrl=\"" << (activeCtrl ? activeCtrl->name().toStdString() : std::string("(null)")) << "\")";
+            // Fall through anyway — an editing element shouldn't block toggling
+            // note-input via a toolbar/menu path. The toggle handler ends the edit.
+        }
     }
 
     const UiContext& ctx = uiContextResolver()->currentUiContext();
     const INavigationControl* ctrl = navigationController()->activeControl();
     std::string ctrlName = ctrl ? ctrl->name().toStdString() : std::string("(null)");
-    bool allowed = ctx == ui::UiCtxProjectFocused
+    // Allow toggling note input whenever a project is loaded. Focus heuristics
+    // are unreliable on WASM (no native focus events), and a toolbar/menu
+    // click should never be silently ignored.
+    bool hasNotation = globalContext()->currentNotation() != nullptr;
+    bool allowed = hasNotation
+                   || ctx == ui::UiCtxProjectFocused
                    || ctx == ui::UiCtxBrailleFocused
+                   || ctx == ui::UiCtxProjectOpened
                    || (ctrl && ctrl->name().startsWith("note-input"));
     LOGI() << "[noteinput] toggleNoteInputAllowed=" << allowed
            << " uiCtx=\"" << ctx.toString() << "\""
-           << " activeControl=\"" << ctrlName << "\"";
+           << " activeControl=\"" << ctrlName << "\""
+           << " hasNotation=" << hasNotation;
 
     return allowed;
 }
