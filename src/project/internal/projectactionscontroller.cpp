@@ -652,6 +652,9 @@ bool ProjectActionsController::isAnyProjectOpened() const
 
 void ProjectActionsController::newProject()
 {
+    LOGI() << "[projectactions] newProject() ENTER — processing=" << m_isProjectProcessing
+           << " downloading=" << m_isProjectDownloading;
+
     //! NOTE This method is synchronous,
     //! but inside `multiwindowsProvider` there can be an event loop
     //! to wait for the responses from other instances, accordingly,
@@ -659,6 +662,7 @@ void ProjectActionsController::newProject()
     //! before the end of the current call.
     //! So we ignore all subsequent calls until the current one completes.
     if (m_isProjectProcessing || m_isProjectDownloading) {
+        LOGW() << "[projectactions] newProject() SKIPPED — already processing/downloading";
         return;
     }
     m_isProjectProcessing = true;
@@ -668,26 +672,37 @@ void ProjectActionsController::newProject()
     };
 
     if (globalContext()->currentProject()) {
+        LOGI() << "[projectactions] newProject() — a project is already open, taking multi-window path";
         if (multiwindowsProvider()->isHasWindowWithoutProject()) {
+            LOGI() << "[projectactions] newProject() — activating existing window without project";
             multiwindowsProvider()->activateWindowWithoutProject({ "file-new" });
             return;
         }
+        LOGI() << "[projectactions] newProject() — opening new window with --session-type=start-with-new";
         QStringList args;
         args << "--session-type" << "start-with-new";
         multiwindowsProvider()->openNewWindow(args);
         return;
     }
 
+    LOGI() << "[projectactions] newProject() — opening NEW_SCORE_URI: " << NEW_SCORE_URI.toString();
     auto promise = interactive()->open(NEW_SCORE_URI);
+    LOGI() << "[projectactions] newProject() — interactive->open() returned a promise, waiting for resolve/reject";
     promise.onResolve(this, [this](const Val&) {
+        LOGI() << "[projectactions] newProject() — NEW_SCORE promise RESOLVED — wizard closed OK";
         extensionsProvider()->performPointAsync(EXEC_ONPOST_PROJECT_CREATED);
 
         Ret ret = doFinishOpenProject();
 
         if (!ret) {
-            LOGE() << ret.toString();
+            LOGE() << "[projectactions] newProject() — doFinishOpenProject failed: " << ret.toString();
+        } else {
+            LOGI() << "[projectactions] newProject() — doFinishOpenProject OK, project should be active";
         }
+    }).onReject(this, [](int code, const std::string& err) {
+        LOGE() << "[projectactions] newProject() — NEW_SCORE promise REJECTED code=" << code << " err=" << err;
     });
+    LOGI() << "[projectactions] newProject() EXIT (promise handlers attached)";
 }
 
 bool ProjectActionsController::closeOpenedProject(bool goToHome)

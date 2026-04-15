@@ -22,8 +22,11 @@
 #include "startupscenario.h"
 
 #ifdef Q_OS_WASM
+#include <emscripten.h>
 #include <emscripten/val.h>
 #endif
+
+#include <QTimer>
 
 #include "log.h"
 
@@ -56,25 +59,26 @@ void StartupScenario::runOnSplashScreen()
 
 void StartupScenario::runAfterSplashScreen()
 {
-    interactive()->open("musescore://notation").onResolve(this, [this](const Val&) {
+    LOGI() << "[startupscenario] runAfterSplashScreen — calling interactive->open";
+    interactive()->open("musescore://notation");
+
+#ifdef Q_OS_WASM
+    // Async::call queue doesn't drain on WASM singlethread, so the
+    // opened()/onResolve chain never fires. Fall back to a Qt event-loop
+    // timer — by the time this fires, QML has rendered and the dispatcher
+    // is wired up.
+    QTimer::singleShot(500, [this]() {
+        if (m_startupCompleted) {
+            return;
+        }
+        LOGI() << "[startupscenario] timer fired — firing onAppReady";
+
         if (m_startupScoreFile.isValid()) {
             dispatcher()->dispatch("file-open", muse::actions::ActionData::make_arg2<QUrl, QString>(
                                        m_startupScoreFile.url, m_startupScoreFile.displayNameOverride));
         }
 
-        // Notify the JS bridge that the notation page is open and the
-        // dispatcher is ready. The JS layer (createMuApi) decides whether
-        // to load a provided score or open the new score dialog.
-        //
-        // We always set Module._appReady = true so a JS handler installed
-        // after this point can detect the missed signal and run itself.
-        // NOTE: use EM_ASM / module_property — NOT emscripten::val::global("Module").
-        // In a MODULARIZE build global("Module") is the factory function, not the
-        // running instance. module_property() and EM_ASM's Module both target the
-        // actual instance.
-#ifdef Q_OS_WASM
-        LOGI() << "[startupscenario] notation page open — firing onAppReady";
-        EM_ASM({ Module['_appReady'] = true; });
+        EM_ASM({ Module["_appReady"] = true; });
 
         emscripten::val onAppReady = emscripten::val::module_property("onAppReady");
         if (!onAppReady.isUndefined() && !onAppReady.isNull()) {
@@ -83,10 +87,12 @@ void StartupScenario::runAfterSplashScreen()
         } else {
             LOGW() << "[startupscenario] onAppReady not set on Module — JS will poll _appReady";
         }
-#endif
 
         m_startupCompleted = true;
     });
+#endif
+
+    LOGI() << "[startupscenario] runAfterSplashScreen EXIT";
 }
 
 bool StartupScenario::startupCompleted() const
