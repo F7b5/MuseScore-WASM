@@ -162,7 +162,9 @@ void WebApi::save()
 
 void WebApi::deleteSelection()
 {
-    dispatcher()->dispatch("action://delete");
+    // action://delete is registered by the desktop ApplicationActionController
+    // which is a stub on web — dispatch the notation-scoped action directly.
+    dispatcher()->dispatch("action://notation/delete");
 }
 
 std::string WebApi::projectTitle() const

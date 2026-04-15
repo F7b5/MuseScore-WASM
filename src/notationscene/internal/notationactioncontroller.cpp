@@ -584,11 +584,13 @@ bool NotationActionController::canReceiveAction(const ActionCode& code) const
     // If no notation is loaded, we cannot handle any action.
     auto masterNotation = currentMasterNotation();
     if (!masterNotation) {
+        LOGI() << "[canReceive] action=\"" << code << "\" — DENY (no master notation)";
         return false;
     }
 
     if (playbackController()->isPlaying()) {
         if (!muse::contains(m_isAllowedDuringPlayback, code)) {
+            LOGI() << "[canReceive] action=\"" << code << "\" — DENY (playing & not allow-listed)";
             return false;
         }
     }
@@ -604,12 +606,16 @@ bool NotationActionController::canReceiveAction(const ActionCode& code) const
     // Actions other than undo and redo can only be handled when the current
     // notation contains at least one part.
     if (!masterNotation->hasParts()) {
+        LOGI() << "[canReceive] action=\"" << code << "\" — DENY (masterNotation has no parts)";
         return false;
     }
 
     auto iter = m_isEnabledMap.find(code);
     if (iter != m_isEnabledMap.end()) {
         bool enabled = iter->second();
+        if (!enabled) {
+            LOGI() << "[canReceive] action=\"" << code << "\" — DENY (enabler returned false)";
+        }
         return enabled;
     }
 
@@ -750,17 +756,21 @@ void NotationActionController::resetState()
 void NotationActionController::toggleNoteInput()
 {
     TRACEFUNC;
+    LOGI() << "[noteinput] toggleNoteInput";
 
     INotationNoteInputPtr noteInput = currentNotationNoteInput();
     if (!noteInput) {
+        LOGW() << "[noteinput] toggleNoteInput — noteInput is NULL";
         return;
     }
 
     if (noteInput->isNoteInputMode()) {
+        LOGI() << "[noteinput] ending note input";
         noteInput->endNoteInput();
         return;
     }
 
+    LOGI() << "[noteinput] starting note input with default method (focusNotation=false)";
     // If the Braille panel or Note Input toolbar has focus, stay there.
     noteInput->startNoteInput(configuration()->defaultNoteInputMethod(), /*focusNotation*/ false);
 }
@@ -768,17 +778,25 @@ void NotationActionController::toggleNoteInput()
 void NotationActionController::toggleNoteInputMethod(NoteInputMethod method)
 {
     TRACEFUNC;
+    LOGI() << "[noteinput] toggleNoteInputMethod method=" << int(method);
 
     INotationNoteInputPtr noteInput = currentNotationNoteInput();
     if (!noteInput) {
+        LOGW() << "[noteinput] toggleNoteInputMethod — noteInput is NULL (no current notation), aborting";
         return;
     }
 
+    LOGI() << "[noteinput] current isNoteInputMode=" << noteInput->isNoteInputMode()
+           << " usingRequestedMethod=" << noteInput->usingNoteInputMethod(method);
+
     if (!noteInput->isNoteInputMode()) {
+        LOGI() << "[noteinput] starting note input with requested method";
         noteInput->startNoteInput(method);
     } else if (noteInput->usingNoteInputMethod(method)) {
+        LOGI() << "[noteinput] already in requested method — toggling off";
         toggleNoteInput();
     } else {
+        LOGI() << "[noteinput] switching method";
         noteInput->setNoteInputMethod(method);
     }
 }
@@ -2240,21 +2258,31 @@ void NotationActionController::playSelectedElement(bool playChord)
 
 bool NotationActionController::toggleNoteInputAllowed() const
 {
-    if (playbackController()->isPlaying() || qApp->applicationState() != Qt::ApplicationActive) {
+    bool isPlaying = playbackController()->isPlaying();
+    Qt::ApplicationState appState = qApp->applicationState();
+    if (isPlaying || appState != Qt::ApplicationActive) {
+        LOGI() << "[noteinput] toggleNoteInputAllowed=false (isPlaying=" << isPlaying
+               << " appState=" << int(appState) << ")";
         return false;
     }
 
     //! NOTE: We're more strict about starting note input mode than exiting it.
     if (!isNoteInputMode() && isEditingElement()) {
+        LOGI() << "[noteinput] toggleNoteInputAllowed=false (not-in-note-input-mode but editing an element)";
         return false;
     }
 
     const UiContext& ctx = uiContextResolver()->currentUiContext();
     const INavigationControl* ctrl = navigationController()->activeControl();
+    std::string ctrlName = ctrl ? ctrl->name().toStdString() : std::string("(null)");
+    bool allowed = ctx == ui::UiCtxProjectFocused
+                   || ctx == ui::UiCtxBrailleFocused
+                   || (ctrl && ctrl->name().startsWith("note-input"));
+    LOGI() << "[noteinput] toggleNoteInputAllowed=" << allowed
+           << " uiCtx=\"" << ctx.toString() << "\""
+           << " activeControl=\"" << ctrlName << "\"";
 
-    return ctx == ui::UiCtxProjectFocused
-           || ctx == ui::UiCtxBrailleFocused
-           || (ctrl && ctrl->name().startsWith("note-input")); // Toolbar buttons.
+    return allowed;
 }
 
 void NotationActionController::startNoteInput()
