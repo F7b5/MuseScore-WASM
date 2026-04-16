@@ -660,7 +660,6 @@ Promise<Val>::BodyResolveReject Interactive::openFunc(const UriQuery& q, const Q
         }
 
         m_openingObject = { q, resolve, reject, QVariant(), nullptr };
-        LOGI() << "[uictx] openFunc body — m_openingObject.query=\"" << m_openingObject.query.toString() << "\"";
 
         RetVal<OpenData> openedRet;
 
@@ -1183,9 +1182,6 @@ void Interactive::onOpen(const QVariant& type, const QVariant& objectId, QObject
 {
     ContainerMeta::Type containerMeta = type.value<ContainerMeta::Type>();
 
-    LOGI() << "[uictx] Interactive::onOpen type=" << int(containerMeta)
-           << " openingUri=\"" << m_openingObject.query.uri().toString() << "\"";
-
     IF_ASSERT_FAILED(containerMeta != ContainerMeta::Undefined) {
         containerMeta = ContainerMeta::QmlDialog;
     }
@@ -1198,7 +1194,6 @@ void Interactive::onOpen(const QVariant& type, const QVariant& objectId, QObject
 
     if (m_openingObject.query.param("floating").toBool()) {
         m_floatingObjects.push_back(m_openingObject);
-        LOGI() << "[uictx] onOpen — floating path, clearing m_openingObject";
         m_openingObject = ObjectInfo(); // clear
         return;
     }
@@ -1223,8 +1218,6 @@ void Interactive::onOpen(const QVariant& type, const QVariant& objectId, QObject
     notifyAboutCurrentUriChanged();
 
     Uri uri = m_openingObject.query.uri();
-    LOGI() << "[uictx] onOpen — pushed stack size=" << m_stack.size()
-           << " top-uri=\"" << uri.toString() << "\"";
     m_openingObject = ObjectInfo(); // clear
 
     Async::call(this, [this, uri]() {

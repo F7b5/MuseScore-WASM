@@ -1474,12 +1474,6 @@ void NotationViewInputController::keyPressEvent(QKeyEvent* event)
 {
     auto key = event->key();
 
-    LOGI() << "[notationview] keyPressEvent key=0x" << QString::number(key, 16).toStdString()
-           << " text=\"" << event->text().toStdString() << "\""
-           << " mods=0x" << QString::number(event->modifiers(), 16).toStdString()
-           << " isAutoRepeat=" << event->isAutoRepeat()
-           << " editing=" << viewInteraction()->isEditingElement();
-
     if (startTextEditingAllowed() && (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter)) {
         dispatcher()->dispatch("edit-text");
         event->accept();

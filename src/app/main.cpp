@@ -25,7 +25,6 @@
 #include <QApplication>
 #include <QStyleHints>
 #include <QQuickWindow>
-#include <QKeyEvent>
 
 #include "appfactory.h"
 #include "internal/commandlineparser.h"
@@ -157,37 +156,6 @@ int main(int argc, char** argv)
     QCoreApplication* qapp = new QApplication(argc, argv);
     CmdOptions opt;
     opt.runMode = IApplication::RunMode::GuiApp;
-#endif
-
-#ifdef Q_OS_WASM
-    // Log every key event reaching QApplication so we can diagnose which keys
-    // Qt actually sees and whether they get consumed before reaching shortcuts.
-    class WasmKeyLogger : public QObject {
-    public:
-        bool eventFilter(QObject* obj, QEvent* ev) override {
-            if (ev->type() == QEvent::KeyPress || ev->type() == QEvent::KeyRelease || ev->type() == QEvent::Shortcut) {
-                QString tag = (ev->type() == QEvent::KeyPress) ? "KeyPress"
-                              : (ev->type() == QEvent::KeyRelease) ? "KeyRelease"
-                              : "Shortcut";
-                if (auto* ke = dynamic_cast<QKeyEvent*>(ev)) {
-                    LOGI() << "[qapp " << tag.toStdString() << "] key=0x" << QString::number(ke->key(), 16).toStdString()
-                           << " text=\"" << ke->text().toStdString() << "\""
-                           << " mods=0x" << QString::number(ke->modifiers(), 16).toStdString()
-                           << " accepted=" << ke->isAccepted()
-                           << " target=" << (obj ? obj->metaObject()->className() : "(null)");
-                } else {
-                    LOGI() << "[qapp " << tag.toStdString() << "] (non-key)"
-                           << " target=" << (obj ? obj->metaObject()->className() : "(null)");
-                }
-            } else if (ev->type() == QEvent::FocusIn || ev->type() == QEvent::FocusOut) {
-                LOGI() << "[qapp " << (ev->type() == QEvent::FocusIn ? "FocusIn" : "FocusOut") << "] "
-                       << "target=" << (obj ? obj->metaObject()->className() : "(null)");
-            }
-            return QObject::eventFilter(obj, ev);
-        }
-    };
-    static WasmKeyLogger s_keyLogger;
-    qapp->installEventFilter(&s_keyLogger);
 #endif
 
     // ====================================================

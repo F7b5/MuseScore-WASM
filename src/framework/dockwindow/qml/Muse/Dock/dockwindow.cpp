@@ -266,9 +266,7 @@ void DockWindow::loadPage(const QString& uri, const QVariantMap& params)
         // Async::call's queue doesn't drain reliably on WASM singlethread —
         // the whole onAppReady / currentUri chain stalls if we defer this.
         // Use a QTimer (Qt event-loop) instead.
-        LOGI() << "[uictx] DockWindow::loadPage first-opening — scheduling QTimer notifyAboutPageLoaded";
         QTimer::singleShot(0, this, [this, notifyAboutPageLoaded]() {
-            LOGI() << "[uictx] DockWindow QTimer fired — emitting pageLoaded";
             if (!m_hasGeometryBeenRestored
                 || (m_mainWindow->windowHandle()->windowStates() & Qt::WindowFullScreen)) {
                 m_mainWindow->windowHandle()->showMaximized();

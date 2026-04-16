@@ -59,7 +59,6 @@ void StartupScenario::runOnSplashScreen()
 
 void StartupScenario::runAfterSplashScreen()
 {
-    LOGI() << "[startupscenario] runAfterSplashScreen — calling interactive->open";
     interactive()->open("musescore://notation");
 
 #ifdef Q_OS_WASM
@@ -71,7 +70,6 @@ void StartupScenario::runAfterSplashScreen()
         if (m_startupCompleted) {
             return;
         }
-        LOGI() << "[startupscenario] timer fired — firing onAppReady";
 
         if (m_startupScoreFile.isValid()) {
             dispatcher()->dispatch("file-open", muse::actions::ActionData::make_arg2<QUrl, QString>(
@@ -82,17 +80,12 @@ void StartupScenario::runAfterSplashScreen()
 
         emscripten::val onAppReady = emscripten::val::module_property("onAppReady");
         if (!onAppReady.isUndefined() && !onAppReady.isNull()) {
-            LOGI() << "[startupscenario] onAppReady callback is set — calling it";
             onAppReady();
-        } else {
-            LOGW() << "[startupscenario] onAppReady not set on Module — JS will poll _appReady";
         }
 
         m_startupCompleted = true;
     });
 #endif
-
-    LOGI() << "[startupscenario] runAfterSplashScreen EXIT";
 }
 
 bool StartupScenario::startupCompleted() const

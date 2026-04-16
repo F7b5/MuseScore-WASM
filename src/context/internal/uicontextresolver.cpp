@@ -89,8 +89,6 @@ UiContext UiContextResolver::resolveCurrentUiContext() const
         currentUri = diagnostics::diagnosticCurrentUri(interactive()->stack());
 #endif
 
-        LOGI() << "[uictx] resolve currentUri=\"" << currentUri.toString() << "\"";
-
         if (currentUri == HOME_PAGE_URI) {
             return context::UiCtxHomeOpened;
         }
@@ -105,15 +103,11 @@ UiContext UiContextResolver::resolveCurrentUiContext() const
 
             INavigationPanel* activePanel = navigationController()->activePanel();
             if (activePanel) {
-                const QString panelName = activePanel->name();
-                LOGI() << "[uictx] activePanel name=\"" << panelName.toStdString() << "\"";
-                if (panelName == NOTATION_NAVIGATION_PANEL) {
+                if (activePanel->name() == NOTATION_NAVIGATION_PANEL) {
                     return context::UiCtxProjectFocused;
-                } else if (panelName == BRAILLE_NAVIGATION_PANEL) {
+                } else if (activePanel->name() == BRAILLE_NAVIGATION_PANEL) {
                     return context::UiCtxBrailleFocused;
                 }
-            } else {
-                LOGI() << "[uictx] no active navigation panel";
             }
 
             return context::UiCtxProjectOpened;

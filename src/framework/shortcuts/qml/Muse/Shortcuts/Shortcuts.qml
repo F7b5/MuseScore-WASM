@@ -56,7 +56,6 @@ QtObject {
             context: Qt.WindowShortcut
             enabled: shortcutsModel.active
             onActivated: {
-                console.log("[shortcut.qml] Qt Shortcut activated — sequence=\"" + sequence + "\"")
                 shortcutsModel.activate(sequence)
             }
         }

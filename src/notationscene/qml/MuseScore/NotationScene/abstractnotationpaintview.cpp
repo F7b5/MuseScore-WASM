@@ -1274,7 +1274,6 @@ void AbstractNotationPaintView::onElementPopupIsOpenChanged(const PopupModelType
 
 void AbstractNotationPaintView::focusInEvent(QFocusEvent* event)
 {
-    LOGI() << "[paintview] focusInEvent reason=" << event->reason();
     QQuickPaintedItem::focusInEvent(event);
     emit activeFocusRequested();
 }
@@ -1339,9 +1338,6 @@ bool AbstractNotationPaintView::shortcutOverride(QKeyEvent* event)
 
 void AbstractNotationPaintView::keyPressEvent(QKeyEvent* event)
 {
-    LOGI() << "[notationpaint] keyPressEvent key=0x" << QString::number(event->key(), 16).toStdString()
-           << " text=\"" << event->text().toStdString() << "\" inited=" << isInited()
-           << " hasActiveFocus=" << hasActiveFocus();
     if (isInited()) {
         m_inputController->keyPressEvent(event);
     }

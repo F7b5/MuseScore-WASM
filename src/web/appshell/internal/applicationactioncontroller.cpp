@@ -39,8 +39,7 @@ void ApplicationActionController::init()
     // stub used to leave them unregistered, so Esc / arrows / Backspace / etc.
     // were dispatched into the void.
     auto forward = [this](const ActionCode& from, const ActionCode& to) {
-        dispatcher()->reg(this, from, [this, from, to]() {
-            LOGI() << "[webappctrl] forwarding " << from << " -> " << to;
+        dispatcher()->reg(this, from, [this, to]() {
             dispatcher()->dispatch(to);
         });
     };

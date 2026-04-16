@@ -55,7 +55,6 @@ AppWindow {
             Layout.fillHeight: true
 
             onPageLoaded: {
-                console.log("[uictx] Main.qml onPageLoaded — calling interactiveProvider.onPageOpened")
                 interactiveProvider.onPageOpened()
                 root.revealWindow()
             }
