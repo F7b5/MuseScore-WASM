@@ -581,16 +581,13 @@ void NotationActionController::init()
 
 bool NotationActionController::canReceiveAction(const ActionCode& code) const
 {
-    // If no notation is loaded, we cannot handle any action.
     auto masterNotation = currentMasterNotation();
     if (!masterNotation) {
-        LOGI() << "[canReceive] action=\"" << code << "\" — DENY (no master notation)";
         return false;
     }
 
     if (playbackController()->isPlaying()) {
         if (!muse::contains(m_isAllowedDuringPlayback, code)) {
-            LOGI() << "[canReceive] action=\"" << code << "\" — DENY (playing & not allow-listed)";
             return false;
         }
     }
@@ -603,20 +600,13 @@ bool NotationActionController::canReceiveAction(const ActionCode& code) const
         return canRedo();
     }
 
-    // Actions other than undo and redo can only be handled when the current
-    // notation contains at least one part.
     if (!masterNotation->hasParts()) {
-        LOGI() << "[canReceive] action=\"" << code << "\" — DENY (masterNotation has no parts)";
         return false;
     }
 
     auto iter = m_isEnabledMap.find(code);
     if (iter != m_isEnabledMap.end()) {
-        bool enabled = iter->second();
-        if (!enabled) {
-            LOGI() << "[canReceive] action=\"" << code << "\" — DENY (enabler returned false)";
-        }
-        return enabled;
+        return iter->second();
     }
 
     return true;
@@ -2269,43 +2259,17 @@ bool NotationActionController::toggleNoteInputAllowed() const
     bool isPlaying = playbackController()->isPlaying();
     Qt::ApplicationState appState = qApp->applicationState();
     if (isPlaying || appState != Qt::ApplicationActive) {
-        LOGI() << "[noteinput] toggleNoteInputAllowed=false (isPlaying=" << isPlaying
-               << " appState=" << int(appState) << ")";
         return false;
-    }
-
-    //! NOTE: We're more strict about starting note input mode than exiting it.
-    //! Exception: a toolbar click should still toggle — callers are expected
-    //! to end the active edit explicitly (see toggleNoteInputMethod).
-    if (!isNoteInputMode() && isEditingElement()) {
-        const INavigationControl* activeCtrl = navigationController()->activeControl();
-        bool fromNoteInputToolbar = activeCtrl && activeCtrl->name().startsWith("note-input");
-        if (!fromNoteInputToolbar) {
-            LOGI() << "[noteinput] toggleNoteInputAllowed=false (not-in-note-input-mode but editing an element; "
-                      "activeCtrl=\"" << (activeCtrl ? activeCtrl->name().toStdString() : std::string("(null)")) << "\")";
-            // Fall through anyway — an editing element shouldn't block toggling
-            // note-input via a toolbar/menu path. The toggle handler ends the edit.
-        }
     }
 
     const UiContext& ctx = uiContextResolver()->currentUiContext();
     const INavigationControl* ctrl = navigationController()->activeControl();
-    std::string ctrlName = ctrl ? ctrl->name().toStdString() : std::string("(null)");
-    // Allow toggling note input whenever a project is loaded. Focus heuristics
-    // are unreliable on WASM (no native focus events), and a toolbar/menu
-    // click should never be silently ignored.
     bool hasNotation = globalContext()->currentNotation() != nullptr;
-    bool allowed = hasNotation
-                   || ctx == ui::UiCtxProjectFocused
-                   || ctx == ui::UiCtxBrailleFocused
-                   || ctx == ui::UiCtxProjectOpened
-                   || (ctrl && ctrl->name().startsWith("note-input"));
-    LOGI() << "[noteinput] toggleNoteInputAllowed=" << allowed
-           << " uiCtx=\"" << ctx.toString() << "\""
-           << " activeControl=\"" << ctrlName << "\""
-           << " hasNotation=" << hasNotation;
-
-    return allowed;
+    return hasNotation
+           || ctx == ui::UiCtxProjectFocused
+           || ctx == ui::UiCtxBrailleFocused
+           || ctx == ui::UiCtxProjectOpened
+           || (ctrl && ctrl->name().startsWith("note-input"));
 }
 
 void NotationActionController::startNoteInput()

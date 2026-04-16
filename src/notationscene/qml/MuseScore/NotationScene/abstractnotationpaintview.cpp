@@ -1272,6 +1272,13 @@ void AbstractNotationPaintView::onElementPopupIsOpenChanged(const PopupModelType
     m_currentElementPopupType = popupType;
 }
 
+void AbstractNotationPaintView::focusInEvent(QFocusEvent* event)
+{
+    LOGI() << "[paintview] focusInEvent reason=" << event->reason();
+    QQuickPaintedItem::focusInEvent(event);
+    emit activeFocusRequested();
+}
+
 void AbstractNotationPaintView::mousePressEvent(QMouseEvent* event)
 {
     TRACEFUNC;

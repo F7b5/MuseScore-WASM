@@ -55,7 +55,7 @@ AppWindow {
             Layout.fillHeight: true
 
             onPageLoaded: {
-                console.log("DockWindow::onPageLoaded")
+                console.log("[uictx] Main.qml onPageLoaded — calling interactiveProvider.onPageOpened")
                 interactiveProvider.onPageOpened()
                 root.revealWindow()
             }
@@ -86,7 +86,7 @@ AppWindow {
     Component.onCompleted: {
         dockWindow.init()
         Qt.callLater(function() {
-            dockWindow.loadPage("musescore://notation", {})
+            api.launcher.open("musescore://notation")
         })
     }
 }
