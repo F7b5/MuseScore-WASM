@@ -746,21 +746,17 @@ void NotationActionController::resetState()
 void NotationActionController::toggleNoteInput()
 {
     TRACEFUNC;
-    LOGI() << "[noteinput] toggleNoteInput";
 
     INotationNoteInputPtr noteInput = currentNotationNoteInput();
     if (!noteInput) {
-        LOGW() << "[noteinput] toggleNoteInput — noteInput is NULL";
         return;
     }
 
     if (noteInput->isNoteInputMode()) {
-        LOGI() << "[noteinput] ending note input";
         noteInput->endNoteInput();
         return;
     }
 
-    LOGI() << "[noteinput] starting note input with default method (focusNotation=false)";
     // If the Braille panel or Note Input toolbar has focus, stay there.
     noteInput->startNoteInput(configuration()->defaultNoteInputMethod(), /*focusNotation*/ false);
 }
@@ -768,11 +764,9 @@ void NotationActionController::toggleNoteInput()
 void NotationActionController::toggleNoteInputMethod(NoteInputMethod method)
 {
     TRACEFUNC;
-    LOGI() << "[noteinput] toggleNoteInputMethod method=" << int(method);
 
     INotationNoteInputPtr noteInput = currentNotationNoteInput();
     if (!noteInput) {
-        LOGW() << "[noteinput] toggleNoteInputMethod — noteInput is NULL (no current notation), aborting";
         return;
     }
 
@@ -780,21 +774,14 @@ void NotationActionController::toggleNoteInputMethod(NoteInputMethod method)
     // first, then switch — not silently do nothing.
     auto interaction = currentNotationInteraction();
     if (interaction && interaction->isEditingElement()) {
-        LOGI() << "[noteinput] toggleNoteInputMethod — ending active element edit before switching";
         interaction->endEditElement();
     }
 
-    LOGI() << "[noteinput] current isNoteInputMode=" << noteInput->isNoteInputMode()
-           << " usingRequestedMethod=" << noteInput->usingNoteInputMethod(method);
-
     if (!noteInput->isNoteInputMode()) {
-        LOGI() << "[noteinput] starting note input with requested method";
         noteInput->startNoteInput(method);
     } else if (noteInput->usingNoteInputMethod(method)) {
-        LOGI() << "[noteinput] already in requested method — toggling off";
         toggleNoteInput();
     } else {
-        LOGI() << "[noteinput] switching method";
         noteInput->setNoteInputMethod(method);
     }
 }
@@ -2256,20 +2243,29 @@ void NotationActionController::playSelectedElement(bool playChord)
 
 bool NotationActionController::toggleNoteInputAllowed() const
 {
-    bool isPlaying = playbackController()->isPlaying();
-    Qt::ApplicationState appState = qApp->applicationState();
-    if (isPlaying || appState != Qt::ApplicationActive) {
+    if (playbackController()->isPlaying() || qApp->applicationState() != Qt::ApplicationActive) {
         return false;
     }
 
     const UiContext& ctx = uiContextResolver()->currentUiContext();
     const INavigationControl* ctrl = navigationController()->activeControl();
-    bool hasNotation = globalContext()->currentNotation() != nullptr;
-    return hasNotation
-           || ctx == ui::UiCtxProjectFocused
+
+#ifdef Q_OS_WASM
+    // On web there is no real focus model — accept the toolbar click as long
+    // as a notation is loaded, even if the notation view isn't focused.
+    if (globalContext()->currentNotation() && ctx == ui::UiCtxProjectOpened) {
+        return true;
+    }
+#endif
+
+    //! NOTE: We're more strict about starting note input mode than exiting it.
+    if (!isNoteInputMode() && isEditingElement()) {
+        return false;
+    }
+
+    return ctx == ui::UiCtxProjectFocused
            || ctx == ui::UiCtxBrailleFocused
-           || ctx == ui::UiCtxProjectOpened
-           || (ctrl && ctrl->name().startsWith("note-input"));
+           || (ctrl && ctrl->name().startsWith("note-input")); // Toolbar buttons.
 }
 
 void NotationActionController::startNoteInput()

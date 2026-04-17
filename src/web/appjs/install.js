@@ -10,7 +10,6 @@ console.log("__dirname:", __dirname);
 const HERE = __dirname
 const ROOT = path.resolve(HERE, "../../..")
 const OUTPUT_DIR = args.length > 0 ? args[0] : "./out"
-const MUSE_MODULE_AUDIO_WORKER = "OFF"
 
 function copyFile(src, dst) {
     try {
@@ -19,16 +18,6 @@ function copyFile(src, dst) {
     } catch (err) {
       console.error("error: failed coped " + src + " => " + dst)
     }
-}
-
-function replaceAll(str, find, replace) {
-  return String(str).replace(new RegExp(find, 'g'), replace);
-}
-
-function configure(file, out) {
-  var content = fs.readFileSync(file)
-  content = replaceAll(content, "{{MUSE_MODULE_AUDIO_WORKER}}", MUSE_MODULE_AUDIO_WORKER);
-  fs.writeFileSync(out, content);
 }
 
 function patchMuseScoreStudioJs(file) {
@@ -62,9 +51,9 @@ fs.rmSync(OUTPUT_DIR+"/MuseScoreStudio.html", {force: true})
 fs.rmSync(OUTPUT_DIR+"/qtloader.js", {force: true})
 fs.rmSync(OUTPUT_DIR+"/qtlogo.svg", {force: true})
 
-// Configure and copy config
+// Copy config
 fs.mkdirSync(OUTPUT_DIR+"/distr", { recursive: true });
-configure(HERE+"/distr/config.js.in", OUTPUT_DIR+"/distr/config.js")
+copyFile(HERE+"/distr/config.js", OUTPUT_DIR+"/distr/config.js")
 
 // Copy api 
 copyFile(HERE+"/distr/muapi.js", OUTPUT_DIR+"/distr/muapi.js");

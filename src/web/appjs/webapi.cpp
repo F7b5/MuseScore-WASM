@@ -27,8 +27,8 @@
 #endif
 
 #include <QBuffer>
-#include <QRegularExpression>
 
+#include "global/io/dir.h"
 #include "global/io/file.h"
 
 #include "log.h"
@@ -66,6 +66,10 @@ void WebApi::init(const muse::modularity::ContextPtr& iocCtx)
 {
     setContext(iocCtx);
 
+    // load()/loadRaw() write into /mu/temp on the Emscripten MEMFS — the dir
+    // doesn't exist by default, so writeFile would fail silently on a cold start.
+    muse::io::Dir::mkpath("/mu/temp/");
+
     auto onProjectChanged = [this]() {
         m_currentProject = globalContext()->currentProject();
 
@@ -102,18 +106,12 @@ void WebApi::load(const char* name, const void* source, unsigned int len)
     LOGI() << "name: " << (name ? name : "<null>") << ", len: " << len;
     ByteArray data = ByteArray::fromRawData(reinterpret_cast<const char*>(source), len);
 
-    QString safeName = QString::fromUtf8(name && *name ? name : "score");
-    safeName.replace(QRegularExpression("[^A-Za-z0-9._-]"), "_");
-    if (!safeName.endsWith(".mscz", Qt::CaseInsensitive)) {
-        safeName += ".mscz";
-    }
+    // Fixed path — the display name comes from the score metadata, not the
+    // on-disk filename, so there's no reason to round-trip the caller's name
+    // through the MEMFS. Avoids any escaping / collision concerns.
+    const io::path_t tempFilePath = "/mu/temp/score.mscz";
 
-    io::path_t tempFilePath = io::path_t(QString("/mu/temp/") + safeName);
-
-    //! NOTE Remove last previous
     io::File::remove(tempFilePath);
-
-    //! NOTE Write new project
     io::File::writeFile(tempFilePath, data);
 
     dispatcher()->dispatch("file-open", actions::ActionData::make_arg1(QUrl::fromLocalFile(tempFilePath.toQString())));
@@ -124,13 +122,7 @@ void WebApi::loadRaw(const char* name, const void* source, unsigned int len)
     LOGI() << "loadRaw name: " << (name ? name : "<null>") << ", len: " << len;
     ByteArray data = ByteArray::fromRawData(reinterpret_cast<const char*>(source), len);
 
-    QString safeName = QString::fromUtf8(name && *name ? name : "score");
-    safeName.replace(QRegularExpression("[^A-Za-z0-9._-]"), "_");
-    if (!safeName.endsWith(".mscx", Qt::CaseInsensitive)) {
-        safeName += ".mscx";
-    }
-
-    io::path_t tempFilePath = io::path_t(QString("/mu/temp/") + safeName);
+    const io::path_t tempFilePath = "/mu/temp/score.mscx";
 
     io::File::remove(tempFilePath);
     io::File::writeFile(tempFilePath, data);

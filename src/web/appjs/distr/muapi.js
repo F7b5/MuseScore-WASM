@@ -2,7 +2,17 @@ import MuImpl from "./muimpl.js"
 
 const DEFAULT_SOUNDFONT = "sound/MS%20Basic.sf3"
 
+// Resolved when C++ StartupScenario fires onAppReady (i.e. notation page is
+// open and the dispatcher is wired). Methods that drive the running app
+// (save, deleteSelection, ...) await this so a caller invoking them before
+// startup completes gets queued instead of silently dropped.
+let _appReadyResolve
+const _appReady = new Promise(function(resolve) { _appReadyResolve = resolve })
+
 const MuApi = {
+    // Resolves once the app is ready to receive commands.
+    ready: _appReady,
+
     // Load score (.mscz binary)
     loadScoreFile: MuImpl.loadScoreFile.bind(MuImpl),
     loadScoreData: MuImpl.loadScoreData.bind(MuImpl),
@@ -17,16 +27,14 @@ const MuApi = {
     startAudioProcessing: MuImpl.startAudioProcessing.bind(MuImpl),
 
     // Trigger the app's regular save action — fires onSave callback
-    save: function() {
-        if (MuApi.Module) {
-            MuApi.Module._save();
-        }
+    save: async function() {
+        await _appReady
+        MuApi.Module._save()
     },
 
-    deleteSelection: function() {
-        if (MuApi.Module) {
-            MuApi.Module._deleteSelection();
-        }
+    deleteSelection: async function() {
+        await _appReady
+        MuApi.Module._deleteSelection()
     },
 
     projectTitle: function() {
@@ -38,10 +46,9 @@ const MuApi = {
     },
 
     // Serialize current project as .mscs XML — fires onSaveRaw callback
-    serializeAsXml: function() {
-        if (MuApi.Module) {
-            MuApi.Module._serializeAsXml();
-        }
+    serializeAsXml: async function() {
+        await _appReady
+        MuApi.Module._serializeAsXml()
     },
 }
 
@@ -58,7 +65,16 @@ async function createMuApi(config) {
     // or open the new score dialog — calling these from onLoaded /
     // onRuntimeInitialized is too early (main() hasn't finished setup).
     // C++ also sets Module._appReady=true so we can detect a missed signal.
+    let appReadyHandled = false
     const handleAppReady = function() {
+        // Both the C++ side (via module_property("onAppReady")) and the
+        // _appReady replay below can invoke this — guard against re-entry
+        // so we don't double-load the score / re-open the new project dialog.
+        if (appReadyHandled) {
+            return
+        }
+        appReadyHandled = true
+
         if (config.rawScoreData) {
             const data = config.rawScoreData instanceof Uint8Array
                 ? config.rawScoreData
@@ -72,6 +88,8 @@ async function createMuApi(config) {
         } else {
             MuImpl.newProject()
         }
+
+        _appReadyResolve()
 
         if (config.onAppReady) {
             config.onAppReady()

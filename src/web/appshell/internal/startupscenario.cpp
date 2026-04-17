@@ -62,31 +62,62 @@ void StartupScenario::runAfterSplashScreen()
     interactive()->open("musescore://notation");
 
 #ifdef Q_OS_WASM
-    // Async::call queue doesn't drain on WASM singlethread, so the
-    // opened()/onResolve chain never fires. Fall back to a Qt event-loop
-    // timer — by the time this fires, QML has rendered and the dispatcher
-    // is wired up.
-    QTimer::singleShot(500, [this]() {
-        if (m_startupCompleted) {
-            return;
-        }
-
-        if (m_startupScoreFile.isValid()) {
-            dispatcher()->dispatch("file-open", muse::actions::ActionData::make_arg2<QUrl, QString>(
-                                       m_startupScoreFile.url, m_startupScoreFile.displayNameOverride));
-        }
-
-        EM_ASM({ Module["_appReady"] = true; });
-
-        emscripten::val onAppReady = emscripten::val::module_property("onAppReady");
-        if (!onAppReady.isUndefined() && !onAppReady.isNull()) {
-            onAppReady();
-        }
-
-        m_startupCompleted = true;
-    });
+    // Async::call doesn't drain on WASM singlethread, so the Promise
+    // returned by interactive()->open() never resolves. Poll the
+    // interactive's currentUri instead — that flips as soon as the dock
+    // window's pageLoaded fires (Qt event-loop driven, so it works here),
+    // which is the real "QML is up + dispatcher is wired" signal.
+    pollForNotationReady();
 #endif
 }
+
+#ifdef Q_OS_WASM
+void StartupScenario::pollForNotationReady()
+{
+    constexpr int POLL_INTERVAL_MS = 50;
+    constexpr int MAX_POLLS = 200; // 10s ceiling — fall through if QML never comes up.
+
+    if (m_startupCompleted) {
+        return;
+    }
+
+    if (interactive()->currentUri().val.isValid()) {
+        completeWasmStartup();
+        return;
+    }
+
+    if (++m_startupPollCount >= MAX_POLLS) {
+        LOGW() << "Startup ready signal timed out after " << (MAX_POLLS * POLL_INTERVAL_MS)
+               << "ms, completing anyway";
+        completeWasmStartup();
+        return;
+    }
+
+    QTimer::singleShot(POLL_INTERVAL_MS, [this]() { pollForNotationReady(); });
+}
+
+void StartupScenario::completeWasmStartup()
+{
+    if (m_startupCompleted) {
+        return;
+    }
+
+    if (m_startupScoreFile.isValid()) {
+        dispatcher()->dispatch("file-open", muse::actions::ActionData::make_arg2<QUrl, QString>(
+                                   m_startupScoreFile.url, m_startupScoreFile.displayNameOverride));
+    }
+
+    // _appReady doubles as a missed-signal marker the JS side checks on init.
+    EM_ASM({ Module["_appReady"] = true; });
+
+    emscripten::val onAppReady = emscripten::val::module_property("onAppReady");
+    if (!onAppReady.isUndefined() && !onAppReady.isNull()) {
+        onAppReady();
+    }
+
+    m_startupCompleted = true;
+}
+#endif
 
 bool StartupScenario::startupCompleted() const
 {

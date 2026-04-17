@@ -49,7 +49,16 @@ public:
     bool startupCompleted() const override;
 
 private:
+#ifdef Q_OS_WASM
+    void pollForNotationReady();
+    void completeWasmStartup();
+#endif
+
     project::ProjectFile m_startupScoreFile;
     bool m_startupCompleted = false;
+
+#ifdef Q_OS_WASM
+    int m_startupPollCount = 0;
+#endif
 };
 }

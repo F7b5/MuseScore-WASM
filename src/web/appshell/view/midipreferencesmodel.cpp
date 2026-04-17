@@ -21,9 +21,6 @@
  */
 #include "midipreferencesmodel.h"
 
-#include "types/ret.h"
-#include "log.h"
-
 using namespace muse;
 using namespace mu::appshell;
 using namespace muse::midi;
@@ -35,27 +32,11 @@ MidiPreferencesModel::MidiPreferencesModel(QObject* parent)
 
 void MidiPreferencesModel::load()
 {
-    LOGI() << "[MidiPrefs] load() called";
-    LOGI() << "[MidiPrefs] Output devices available: " << midiOutPort()->availableDevices().size();
-    for (const MidiDevice& dev : midiOutPort()->availableDevices()) {
-        LOGI() << "[MidiPrefs]   output: id=" << dev.id << " name=" << dev.name;
-    }
-    LOGI() << "[MidiPrefs] Input devices available: " << midiInPort()->availableDevices().size();
-    for (const MidiDevice& dev : midiInPort()->availableDevices()) {
-        LOGI() << "[MidiPrefs]   input: id=" << dev.id << " name=" << dev.name;
-    }
-    LOGI() << "[MidiPrefs] Current output device: " << midiOutPort()->deviceID()
-           << " connected=" << midiOutPort()->isConnected();
-    LOGI() << "[MidiPrefs] Current input device: " << midiInPort()->deviceID()
-           << " connected=" << midiInPort()->isConnected();
-
     midiInPort()->availableDevicesChanged().onNotify(this, [this]() {
-        LOGI() << "[MidiPrefs] Input devices changed notification";
         emit devicesChanged();
     });
 
     midiOutPort()->availableDevicesChanged().onNotify(this, [this]() {
-        LOGI() << "[MidiPrefs] Output devices changed notification";
         emit devicesChanged();
     });
 
@@ -120,15 +101,10 @@ void MidiPreferencesModel::setInputDevice(const QString& deviceId)
 void MidiPreferencesModel::setOutputDevice(const QString& deviceId)
 {
     std::string id = deviceId.toStdString();
-    LOGI() << "[MidiPrefs] setOutputDevice: " << id;
     if (id == NONE_DEVICE_ID) {
         midiOutPort()->disconnect();
-        LOGI() << "[MidiPrefs] Output disconnected";
     } else {
-        Ret ret = midiOutPort()->connect(id);
-        LOGI() << "[MidiPrefs] Output connect result: " << ret.toString()
-               << " isConnected=" << midiOutPort()->isConnected()
-               << " deviceID=" << midiOutPort()->deviceID();
+        midiOutPort()->connect(id);
     }
     emit devicesChanged();
 }

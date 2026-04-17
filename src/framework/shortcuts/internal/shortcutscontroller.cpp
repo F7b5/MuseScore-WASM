@@ -36,15 +36,12 @@ void ShortcutsController::init()
 
 void ShortcutsController::activate(const std::string& sequence)
 {
-    LOGI() << "[shortcut] activate sequence=\"" << sequence << "\"";
+    LOGD() << sequence;
 
     ActionCode actionCode = resolveAction(sequence);
 
     if (!actionCode.empty()) {
-        LOGI() << "[shortcut] sequence=\"" << sequence << "\" resolved to action=\"" << actionCode << "\"";
         dispatcher()->dispatch(actionCode);
-    } else {
-        LOGW() << "[shortcut] sequence=\"" << sequence << "\" resolved to NO action (filtered by context/enabled state)";
     }
 }
 
@@ -72,7 +69,6 @@ static bool defaultHasLowerPriorityThan(const std::string& ctx1, const std::stri
 ActionCode ShortcutsController::resolveAction(const std::string& sequence) const
 {
     ShortcutList shortcutsForSequence = shortcutsRegister()->shortcutsForSequence(sequence);
-    LOGI() << "[shortcut] resolveAction sequence=\"" << sequence << "\" found " << shortcutsForSequence.size() << " shortcut(s)";
     IF_ASSERT_FAILED(!shortcutsForSequence.empty()) {
         return ActionCode();
     }
@@ -82,18 +78,15 @@ ActionCode ShortcutsController::resolveAction(const std::string& sequence) const
     for (const Shortcut& sc : shortcutsForSequence) {
         //! NOTE Check if the shortcut itself is allowed
         if (!uiContextResolver()->isShortcutContextAllowed(sc.context)) {
-            LOGI() << "[shortcut]   action=\"" << sc.action << "\" context=\"" << sc.context << "\" — BLOCKED by context";
             continue;
         }
 
         //! NOTE Check if the action is allowed
         muse::ui::UiActionState st = aregister()->actionState(sc.action);
         if (!st.enabled) {
-            LOGI() << "[shortcut]   action=\"" << sc.action << "\" context=\"" << sc.context << "\" — BLOCKED (action disabled)";
             continue;
         }
 
-        LOGI() << "[shortcut]   action=\"" << sc.action << "\" context=\"" << sc.context << "\" — allowed";
         allowedShortcuts.push_back(sc);
     }
 

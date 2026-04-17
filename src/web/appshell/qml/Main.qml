@@ -84,6 +84,10 @@ AppWindow {
 
     Component.onCompleted: {
         dockWindow.init()
+        // Defer until the current event-loop turn finishes so dockWindow.init()
+        // can install its page registrations before the launcher tries to route
+        // to "musescore://notation" — otherwise the URI lookup races init()
+        // and the page doesn't mount on cold start.
         Qt.callLater(function() {
             api.launcher.open("musescore://notation")
         })

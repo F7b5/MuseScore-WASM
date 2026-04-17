@@ -55,9 +55,7 @@ QtObject {
         Shortcut {
             context: Qt.WindowShortcut
             enabled: shortcutsModel.active
-            onActivated: {
-                shortcutsModel.activate(sequence)
-            }
+            onActivated: shortcutsModel.activate(sequence)
         }
     }
 }
