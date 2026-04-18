@@ -10,6 +10,9 @@ console.log("__dirname:", __dirname);
 const HERE = __dirname
 const ROOT = path.resolve(HERE, "../../..")
 const OUTPUT_DIR = args.length > 0 ? args[0] : "./out"
+// Second arg is CMAKE_BINARY_DIR (where lrelease drops *.qm under share/locale/).
+// Fall back to <ROOT>/build.release for manual invocations.
+const BUILD_DIR = args.length > 1 ? args[1] : path.join(ROOT, "build.release")
 
 function copyFile(src, dst) {
     try {
@@ -81,4 +84,22 @@ const SF_DST = path.join(OUTPUT_DIR, "sound", "MS Basic.sf3");
 if (!fs.existsSync(SF_DST)) {
   fs.mkdirSync(OUTPUT_DIR+"/sound", { recursive: true });
   copyFile(SF_SRC, SF_DST);
+}
+
+// Copy locale assets: languages.json (from source tree) + every *.qm produced
+// by qt_add_lrelease into build.artifacts/locale/. The JS loader fetches them
+// at runtime and injects the subset it needs into MEMFS at /files/share/locale.
+const LOCALE_DST = path.join(OUTPUT_DIR, "locale");
+fs.mkdirSync(LOCALE_DST, { recursive: true });
+copyFile(path.join(ROOT, "share", "locale", "languages.json"), path.join(LOCALE_DST, "languages.json"));
+
+const QM_SRC_DIR = path.join(BUILD_DIR, "share", "locale");
+if (fs.existsSync(QM_SRC_DIR)) {
+  const qmFiles = fs.readdirSync(QM_SRC_DIR).filter(n => n.endsWith(".qm"));
+  for (const name of qmFiles) {
+    copyFile(path.join(QM_SRC_DIR, name), path.join(LOCALE_DST, name));
+  }
+  console.info("success: copied " + qmFiles.length + " .qm files from " + QM_SRC_DIR);
+} else {
+  console.warn("warn: .qm source dir not found at " + QM_SRC_DIR + " — localisation will be unavailable");
 }

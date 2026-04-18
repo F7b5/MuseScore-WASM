@@ -113,7 +113,8 @@ if(BUILD_CONFIGURATION STREQUAL "APP-WEB")
     set(MUE_CONFIGURATION_IS_APPWEB ON)
     set(MUSE_CONFIGURATION_IS_WEB ON)
 
-    set(QT_ADD_LINGUISTTOOLS OFF)
+    # LinguistTools stay ON so qt_add_lrelease can produce the .qm files
+    # the LanguagesService loads at startup (see share/locale/CMakeLists.txt).
     set(QT_ADD_CONCURRENT OFF)
     set(QT_QPROCESS_SUPPORTED OFF)
     set(QT_CONCURRENT_SUPPORTED OFF)
@@ -154,7 +155,6 @@ if(BUILD_CONFIGURATION STREQUAL "APP-WEB")
     set(MUSE_MODULE_VST OFF)
     set(MUSE_MODULE_AUTOBOT OFF)
     set(MUSE_MODULE_CLOUD OFF)
-    set(MUSE_MODULE_LANGUAGES OFF)
     set(MUSE_MODULE_LEARN OFF)
     set(MUSE_MODULE_MULTIWINDOWS OFF)
     set(MUSE_MODULE_EXTENSIONS OFF)

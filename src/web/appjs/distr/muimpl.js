@@ -3,6 +3,119 @@ import qtLoad from "./qtloader.js";
 import AudioDriver from "./audiodriver.js";
 import MidiDriver from "./mididriver.js";
 
+// Maps BCP-47-ish browser tags / config values to the codes MuseScore uses
+// for its .qm filenames. Mirrors LanguagesService::effectiveLanguageCode().
+function normalizeLanguageCode(code) {
+    if (!code) return "";
+    // Browser gives "en-US"; we want "en_US".
+    code = code.replace(/-/g, "_");
+    // Special cases matching LanguagesService::effectiveLanguageCode.
+    const special = {
+        "ca_valencia": "ca@valencia",
+        "en": "en_US",
+        "en_AU": "en_GB",
+        "hi": "hi_IN",
+        "mn": "mn_MN",
+        "zh": "zh_CN",
+    };
+    if (special[code]) return special[code];
+    return code;
+}
+
+// Resolve the language code we should load, given an explicit opt and the
+// manifest from languages.json. Falls back through navigator.languages when
+// opt is "system" (or absent). Returns { code, entry } with code the key
+// into langsManifest, or null if none matched (→ English/built-in).
+function resolveLanguage(opt, langsManifest) {
+    const candidates = [];
+    if (opt && opt !== "system") {
+        candidates.push(opt);
+    } else if (typeof navigator !== "undefined" && navigator.languages) {
+        for (const tag of navigator.languages) candidates.push(tag);
+        if (navigator.language) candidates.push(navigator.language);
+    }
+    for (const raw of candidates) {
+        const code = normalizeLanguageCode(raw);
+        if (langsManifest[code]) return { code, entry: langsManifest[code] };
+        // Strip region and retry (e.g. "de_AT" → "de_DE" via normalize? no —
+        // manifest keys are specific, so fall back to bare language match).
+        const bare = code.split("_")[0].split("@")[0];
+        for (const key of Object.keys(langsManifest)) {
+            if (key === bare || key.startsWith(bare + "_") || key.startsWith(bare + "@")) {
+                return { code: key, entry: langsManifest[key] };
+            }
+        }
+    }
+    return null;
+}
+
+// Runs as an async preRun step: downloads languages.json + the .qm files for
+// the resolved locale (plus fallbacks) and writes them into MEMFS at
+// /files/share/locale/ — where LanguagesService::loadLanguages() looks.
+async function preloadLocale(instance, wasmBase, opt) {
+    const LOCALE_DIR = "/files/share/locale";
+    const mkdirs = (dir) => {
+        const parts = dir.split("/").filter(Boolean);
+        let p = "";
+        for (const part of parts) {
+            p += "/" + part;
+            try { instance.FS.mkdir(p); }
+            catch (e) { if (e.errno !== 20) throw e; }
+        }
+    };
+
+    let manifestBytes;
+    let manifest;
+    try {
+        const res = await fetch(wasmBase + "locale/languages.json");
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        manifestBytes = new Uint8Array(await res.arrayBuffer());
+        manifest = JSON.parse(new TextDecoder().decode(manifestBytes));
+    } catch (e) {
+        console.warn("[locale] languages.json unavailable, skipping preload:", e);
+        instance.__muLanguage = "en_US";
+        return;
+    }
+
+    const resolved = resolveLanguage(opt, manifest);
+    const resolvedCode = resolved ? resolved.code : "en_US";
+    console.info("[locale] resolved language:", resolvedCode, "(requested:", opt + ")");
+
+    mkdirs(LOCALE_DIR);
+    instance.FS.writeFile(LOCALE_DIR + "/languages.json", manifestBytes);
+
+    if (!resolved) {
+        instance.__muLanguage = resolvedCode;
+        return;
+    }
+
+    // Load main locale + fallbacks (manifest entry has fallbackLanguages array).
+    const codesToLoad = new Set([resolved.code]);
+    for (const fb of (resolved.entry.fallbackLanguages || [])) {
+        codesToLoad.add(fb);
+    }
+
+    const resources = ["musescore", "instruments"];
+    await Promise.all([...codesToLoad].flatMap((code) =>
+        resources.map(async (name) => {
+            const file = name + "_" + code + ".qm";
+            try {
+                const res = await fetch(wasmBase + "locale/" + file);
+                if (!res.ok) {
+                    console.warn("[locale] missing", file, "(HTTP " + res.status + ")");
+                    return;
+                }
+                const bytes = new Uint8Array(await res.arrayBuffer());
+                instance.FS.writeFile(LOCALE_DIR + "/" + file, bytes);
+            } catch (e) {
+                console.warn("[locale] failed to fetch", file, e);
+            }
+        })
+    ));
+
+    instance.__muLanguage = resolvedCode;
+}
+
 function setupInternalCallbacks(Module) {
 
     // Interactive
@@ -135,6 +248,17 @@ const MuImpl = {
             },
 
             soundFont: opt.soundFont,
+
+            // Block emscripten's start until locale preload finishes writing
+            // .qm files into MEMFS at /files/share/locale/. LanguagesService
+            // reads from there during onPreInit, so the files must be present
+            // before main() runs.
+            preRun: [function(instance) {
+                instance.addRunDependency("mu-locale-preload");
+                preloadLocale(instance, wasmBase, opt.language)
+                    .catch(function(e) { console.warn("[locale] preload failed:", e); })
+                    .finally(function() { instance.removeRunDependency("mu-locale-preload"); });
+            }],
 
             // called from cpp
             onStartApp: this._onStartApp.bind(this)

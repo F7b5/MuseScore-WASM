@@ -30,6 +30,10 @@
 
 #include "log.h"
 
+#ifdef Q_OS_WASM
+#include <emscripten/val.h>
+#endif
+
 using namespace muse;
 using namespace muse::languages;
 
@@ -39,7 +43,21 @@ void LanguagesConfiguration::init()
 {
     m_config = ConfigReader::read(":/configs/languages.cfg");
 
-    settings()->setDefaultValue(LANGUAGE_KEY, Val(SYSTEM_LANGUAGE_CODE.toStdString()));
+    std::string defaultLanguage = SYSTEM_LANGUAGE_CODE.toStdString();
+#ifdef Q_OS_WASM
+    // createMuApi resolves the locale from config.language / navigator.languages
+    // in JS and publishes the final code on Module.__muLanguage before main()
+    // runs. Use it as the default so first-boot picks up the host language
+    // without the user having to touch settings.
+    emscripten::val muLanguage = emscripten::val::module_property("__muLanguage");
+    if (!muLanguage.isUndefined() && !muLanguage.isNull()) {
+        std::string jsLanguage = muLanguage.as<std::string>();
+        if (!jsLanguage.empty()) {
+            defaultLanguage = jsLanguage;
+        }
+    }
+#endif
+    settings()->setDefaultValue(LANGUAGE_KEY, Val(defaultLanguage));
     settings()->valueChanged(LANGUAGE_KEY).onReceive(nullptr, [this](const Val& val) {
         m_currentLanguageCodeChanged.send(val.toQString());
     });

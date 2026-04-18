@@ -58,6 +58,12 @@ async function createMuApi(config) {
         config.soundFont = window.location.origin + "/wasm/" + DEFAULT_SOUNDFONT
     }
 
+    // language: POSIX-ish code like "fr", "de_DE", "zh_CN", or "system" (default).
+    // "system" / unset → resolved from navigator.languages at preload time.
+    if (!config.language) {
+        config.language = "system"
+    }
+
     MuApi.Module = await MuImpl.loadModule(config)
 
     // C++ StartupScenario fires onAppReady once the notation page is open
