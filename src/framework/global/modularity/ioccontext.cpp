@@ -59,7 +59,8 @@ muse::modularity::ContextPtr muse::iocCtxForQmlContext(const QQmlContext* ctx)
 
     QmlIoCContext* qmlIoc = rootContext->contextProperty("ioc_context").value<QmlIoCContext*>();
     IF_ASSERT_FAILED(qmlIoc) {
-        LOGW() << "QmlIoCContext is not set for QML Context: " << rootContext->objectName();
+        LOGW() << "QmlIoCContext is not set for QML Context: "
+               << rootContext->objectName().toStdString();
         return modularity::ContextPtr();
     }
 

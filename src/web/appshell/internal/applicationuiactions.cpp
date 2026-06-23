@@ -156,7 +156,25 @@ const UiActionList ApplicationUiActions::m_actions = {
              TranslatableString("action", "&Status bar"),
              TranslatableString("action", "Show/hide status bar"),
              Checkable::Yes
-             )
+             ),
+
+    // Preferences
+    UiAction("preference-dialog",
+             mu::context::UiCtxAny,
+             mu::context::CTX_ANY,
+             TranslatableString("action", "&Preferences…"),
+             TranslatableString("action", "Preferences")
+             ),
+
+    // Global actions forwarded to notation-scoped equivalents
+    // (dispatcher wiring lives in ApplicationActionController::init).
+    UiAction("action://copy",   { "action://notation/copy" },   mu::context::UiCtxAny, mu::context::CTX_ANY),
+    UiAction("action://cut",    { "action://notation/cut" },    mu::context::UiCtxAny, mu::context::CTX_ANY),
+    UiAction("action://paste",  { "action://notation/paste" },  mu::context::UiCtxAny, mu::context::CTX_ANY),
+    UiAction("action://undo",   { "action://notation/undo" },   mu::context::UiCtxAny, mu::context::CTX_ANY),
+    UiAction("action://redo",   { "action://notation/redo" },   mu::context::UiCtxAny, mu::context::CTX_ANY),
+    UiAction("action://delete", { "action://notation/delete" }, mu::context::UiCtxAny, mu::context::CTX_ANY),
+    UiAction("action://cancel", { "action://notation/cancel" }, mu::context::UiCtxAny, mu::context::CTX_ANY)
 };
 
 ApplicationUiActions::ApplicationUiActions(std::shared_ptr<ApplicationActionController> controller, const modularity::ContextPtr& iocCtx)
@@ -174,7 +192,7 @@ void ApplicationUiActions::init()
         m_actionCheckedChanged.send({ TOGGLE_BRAILLE_ACTION_CODE });
     });
 
-    notationConfiguration()->useNewPercussionPanelChanged().onNotify(this, [this]() {
+    notationSceneConfiguration()->useNewPercussionPanelChanged().onNotify(this, [this]() {
         m_actionEnabledChanged.send({ TOGGLE_PERCUSSION_PANEL_ACTION_CODE });
     });
 }
@@ -210,7 +228,7 @@ const muse::ui::UiActionList& ApplicationUiActions::actionsList() const
 bool ApplicationUiActions::actionEnabled(const UiAction& act) const
 {
     if (act.code == TOGGLE_PERCUSSION_PANEL_ACTION_CODE) {
-        return notationConfiguration()->useNewPercussionPanel();
+        return notationSceneConfiguration()->useNewPercussionPanel();
     }
 
     return m_controller->canReceiveAction(act.code);

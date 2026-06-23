@@ -1,4 +1,5 @@
 const fs = require('fs');
+const path = require('path');
 
 console.log("install js api step")
 
@@ -6,10 +7,12 @@ var args = process.argv.slice(2);
 console.log("args:", args)
 console.log("__dirname:", __dirname);
 
-const HERE=__dirname
-const ROOT=HERE+"/../.."
+const HERE = __dirname
+const ROOT = path.resolve(HERE, "../../..")
 const OUTPUT_DIR = args.length > 0 ? args[0] : "./out"
-const MUSE_MODULE_AUDIO_WORKER = "OFF"
+// Second arg is CMAKE_BINARY_DIR (where lrelease drops *.qm under share/locale/).
+// Fall back to <ROOT>/build.release for manual invocations.
+const BUILD_DIR = args.length > 1 ? args[1] : path.join(ROOT, "build.release")
 
 function copyFile(src, dst) {
     try {
@@ -20,14 +23,30 @@ function copyFile(src, dst) {
     }
 }
 
-function replaceAll(str, find, replace) {
-  return String(str).replace(new RegExp(find, 'g'), replace);
-}
+function patchMuseScoreStudioJs(file) {
+  if (!fs.existsSync(file)) {
+    return;
+  }
 
-function configure(file, out) {
-  var content = fs.readFileSync(file)
-  content = replaceAll(content, "{{MUSE_MODULE_AUDIO_WORKER}}", MUSE_MODULE_AUDIO_WORKER);
-  fs.writeFileSync(out, content);
+  const needle = "var __mktime_js=function(tmPtr){tmPtr>>>=0;var ret=(()=>{var date=new Date(";
+  const guard = "var __mktime_js=function(tmPtr){tmPtr>>>=0;var ret=(()=>{var date=new Date(";
+  const inserted = ",0);if(!Number.isFinite(date.getTime()))return-1;var dst=";
+  const original = ",0);var dst=";
+
+  let content = fs.readFileSync(file, "utf8");
+  if (!content.includes(needle) || !content.includes(original)) {
+    console.warn("warn: failed to locate __mktime_js patch point in " + file);
+    return;
+  }
+
+  if (content.includes(inserted)) {
+    console.info("success: __mktime_js already patched in " + file);
+    return;
+  }
+
+  content = content.replace(original, inserted);
+  fs.writeFileSync(file, content);
+  console.info("success: patched __mktime_js guard in " + file);
 }
 
 // Remove Unnecessary Qt files
@@ -35,16 +54,17 @@ fs.rmSync(OUTPUT_DIR+"/MuseScoreStudio.html", {force: true})
 fs.rmSync(OUTPUT_DIR+"/qtloader.js", {force: true})
 fs.rmSync(OUTPUT_DIR+"/qtlogo.svg", {force: true})
 
-// Configure and copy config
+// Copy config
 fs.mkdirSync(OUTPUT_DIR+"/distr", { recursive: true });
-configure(HERE+"/distr/config.js.in", OUTPUT_DIR+"/distr/config.js")
+copyFile(HERE+"/distr/config.js", OUTPUT_DIR+"/distr/config.js")
 
 // Copy api 
 copyFile(HERE+"/distr/muapi.js", OUTPUT_DIR+"/distr/muapi.js");
 copyFile(HERE+"/distr/muimpl.js", OUTPUT_DIR+"/distr/muimpl.js");
 copyFile(HERE+"/distr/qtloader.js", OUTPUT_DIR+"/distr/qtloader.js");
 copyFile(HERE+"/distr/audioworker.js", OUTPUT_DIR+"/distr/audioworker.js");
-copyFile(HERE+"/distr/audiodriver.js", OUTPUT_DIR+"/distr/audiodriver.js"); 
+copyFile(HERE+"/distr/audiodriver.js", OUTPUT_DIR+"/distr/audiodriver.js");
+copyFile(HERE+"/distr/mididriver.js", OUTPUT_DIR+"/distr/mididriver.js");
 copyFile(HERE+"/distr/audio_worklet_processor.js", OUTPUT_DIR+"/distr/audio_worklet_processor.js");
 
 // Copy viewer
@@ -55,11 +75,31 @@ copyFile(HERE+"/viewer/index.html", OUTPUT_DIR+"/MuseScoreStudio.html");
 // Copy tools
 copyFile(HERE+"/viewer/run_server.sh", OUTPUT_DIR+"/run_server.sh");
 
+// Patch generated Emscripten glue to tolerate musl timezone probes with out-of-range years.
+patchMuseScoreStudioJs(OUTPUT_DIR+"/MuseScoreStudio.js");
+
 // Copy SF if need
-const SF_SRC=ROOT+"/share/sound/MS Basic.sf3"
-const SF_DST=OUTPUT_DIR+"/sound/MS Basic.sf3";
+const SF_SRC = path.join(ROOT, "share", "sound", "MS Basic.sf3");
+const SF_DST = path.join(OUTPUT_DIR, "sound", "MS Basic.sf3");
 if (!fs.existsSync(SF_DST)) {
   fs.mkdirSync(OUTPUT_DIR+"/sound", { recursive: true });
   copyFile(SF_SRC, SF_DST);
 }
 
+// Copy locale assets: languages.json (from source tree) + every *.qm produced
+// by qt_add_lrelease into build.artifacts/locale/. The JS loader fetches them
+// at runtime and injects the subset it needs into MEMFS at /files/share/locale.
+const LOCALE_DST = path.join(OUTPUT_DIR, "locale");
+fs.mkdirSync(LOCALE_DST, { recursive: true });
+copyFile(path.join(ROOT, "share", "locale", "languages.json"), path.join(LOCALE_DST, "languages.json"));
+
+const QM_SRC_DIR = path.join(BUILD_DIR, "share", "locale");
+if (fs.existsSync(QM_SRC_DIR)) {
+  const qmFiles = fs.readdirSync(QM_SRC_DIR).filter(n => n.endsWith(".qm"));
+  for (const name of qmFiles) {
+    copyFile(path.join(QM_SRC_DIR, name), path.join(LOCALE_DST, name));
+  }
+  console.info("success: copied " + qmFiles.length + " .qm files from " + QM_SRC_DIR);
+} else {
+  console.warn("warn: .qm source dir not found at " + QM_SRC_DIR + " — localisation will be unavailable");
+}

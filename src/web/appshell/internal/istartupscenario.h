@@ -19,34 +19,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef MU_APPSHELL_ISTARTUPSCENARIO_H
-#define MU_APPSHELL_ISTARTUPSCENARIO_H
+#pragma once
 
-#include "modularity/imoduleinterface.h"
-
-#include "global/async/promise.h"
-#include "global/types/ret.h"
-#include "project/types/projecttypes.h"
-
-namespace mu::appshell {
-class IStartupScenario : MODULE_CONTEXT_INTERFACE
-{
-    INTERFACE_ID(IStartupScenario)
-
-public:
-    virtual ~IStartupScenario() = default;
-
-    virtual void setStartupType(const std::optional<std::string>& type) = 0;
-
-    virtual bool isStartWithNewFileAsSecondaryInstance() const = 0;
-
-    virtual const project::ProjectFile& startupScoreFile() const = 0;
-    virtual void setStartupScoreFile(const std::optional<project::ProjectFile>& file) = 0;
-
-    virtual muse::async::Promise<muse::Ret> runOnSplashScreen() = 0;
-    virtual void runAfterSplashScreen() = 0;
-    virtual bool startupCompleted() const = 0;
-};
-}
-
-#endif // MU_APPSHELL_ISTARTUPSCENARIO_H
+#include "../../../appshell/internal/istartupscenario.h"

@@ -309,19 +309,24 @@ void WebInteractive::raise(const UriQuery& uri)
     m_origin->raise(uri);
 }
 
-void WebInteractive::close(const UriQuery& uri)
+async::Promise<Ret> WebInteractive::close(const UriQuery& uri)
 {
-    m_origin->close(uri);
+    return m_origin->close(uri);
 }
 
-void WebInteractive::close(const Uri& uri)
+async::Promise<Ret> WebInteractive::close(const Uri& uri)
 {
-    m_origin->close(uri);
+    return m_origin->close(uri);
 }
 
-void WebInteractive::closeAllDialogs()
+Ret WebInteractive::closeSync(const UriQuery& uri)
 {
-    m_origin->closeAllDialogs();
+    return m_origin->closeSync(uri);
+}
+
+Ret WebInteractive::closeAllDialogsSync()
+{
+    return m_origin->closeAllDialogsSync();
 }
 
 ValCh<Uri> WebInteractive::currentUri() const
@@ -339,32 +344,17 @@ std::vector<Uri> WebInteractive::stack() const
     return m_origin->stack();
 }
 
-Ret WebInteractive::openUrl(const std::string& url) const
+async::Notification WebInteractive::currentUriAboutToBeChanged() const
 {
-    return openUrl(QUrl(QString::fromStdString(url)));
+    return m_origin->currentUriAboutToBeChanged();
 }
 
-Ret WebInteractive::openUrl(const QUrl& url) const
+QWindow* WebInteractive::topWindow() const
 {
-    return m_origin->openUrl(url);
+    return m_origin->topWindow();
 }
 
-Ret WebInteractive::isAppExists(const std::string& appIdentifier) const
+bool WebInteractive::topWindowIsWidget() const
 {
-    return m_origin->isAppExists(appIdentifier);
-}
-
-Ret WebInteractive::canOpenApp(const UriQuery& uri) const
-{
-    return m_origin->canOpenApp(uri);
-}
-
-async::Promise<Ret> WebInteractive::openApp(const UriQuery& uri) const
-{
-    return m_origin->openApp(uri);
-}
-
-Ret WebInteractive::revealInFileBrowser(const io::path_t& filePath) const
-{
-    return m_origin->revealInFileBrowser(filePath);
+    return m_origin->topWindowIsWidget();
 }

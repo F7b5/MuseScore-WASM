@@ -31,31 +31,42 @@
 #include "audio/main/isoundfontcontroller.h"
 
 namespace mu::appjs {
-class WebApi : public muse::async::Asyncable
+class WebApi : public muse::async::Asyncable, public muse::Contextable
 {
-    inline static muse::GlobalInject<muse::IInteractive> interactive;
-    inline static muse::GlobalInject<muse::actions::IActionsDispatcher> dispatcher;
-    inline static muse::GlobalInject<mu::context::IGlobalContext> globalContext;
-    inline static muse::GlobalInject<muse::audio::IStartAudioController> startAudioController;
-    inline static muse::GlobalInject<muse::audio::ISoundFontController> soundFontController;
+    muse::ContextInject<muse::IInteractive> interactive = { this };
+    muse::ContextInject<muse::actions::IActionsDispatcher> dispatcher = { this };
+    muse::ContextInject<mu::context::IGlobalContext> globalContext = { this };
+    muse::ContextInject<muse::audio::IStartAudioController> startAudioController = { this };
+    muse::ContextInject<muse::audio::ISoundFontController> soundFontController = { this };
 
 public:
 
     static WebApi* instance();
 
-    void init();
+    void init(const muse::modularity::ContextPtr& iocCtx);
     void deinit();
 
-    void load(const void* source, unsigned int len);
+    void load(const char* name, const void* source, unsigned int len);
+    void loadRaw(const char* name, const void* source, unsigned int len);
+    void newProject();
     void addSoundFont(const std::string& uri);
     void startAudioProcessing();
+    void save();
+    void deleteSelection();
+    std::string projectTitle() const;
+    void serializeAsXml();
 
 private:
 
-    WebApi() = default;
+    WebApi() : muse::Contextable(muse::modularity::globalCtx) {}
 
+    void emitSavedProject(const char* callbackName);
+    void emitSerializedProject(const char* callbackName);
     void onProjectSaved(const muse::io::path_t& path, mu::project::SaveMode mode);
+    void onNeedSaveChanged();
+    void onProjectTitleChanged();
 
     project::INotationProjectPtr m_currentProject;
+    bool m_isSerializingProject = false;
 };
 }

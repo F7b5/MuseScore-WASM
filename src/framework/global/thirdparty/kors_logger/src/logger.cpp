@@ -80,7 +80,7 @@ DateTime DateTime::now()
     milliseconds ms_d = duration_cast< milliseconds >(system_clock::now().time_since_epoch());
 
     std::time_t sec = static_cast<std::time_t>(ms_d.count() / 1000);
-    std::tm tm;
+    std::tm tm = {};
 #ifdef WIN32
     bool err = localtime_s(&tm, &sec) != 0;
 #else

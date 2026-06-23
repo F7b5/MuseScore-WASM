@@ -47,8 +47,10 @@ Item {
         id: thePlaybackModel
     }
 
-    width: content.width + (root.floating ? 12 : 0)
-    height: content.height
+    implicitWidth: content.width + (root.floating ? 12 : 0)
+    implicitHeight: content.height
+    width: implicitWidth
+    height: implicitHeight
 
     Component.onCompleted: {
         thePlaybackModel.load()

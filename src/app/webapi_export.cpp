@@ -28,7 +28,13 @@ using namespace mu::appjs;
 
 extern "C" {
 EMSCRIPTEN_KEEPALIVE
-void load(const void* source, unsigned int len) { WebApi::instance()->load(source, len); }
+void load(const char* name, const void* source, unsigned int len) { WebApi::instance()->load(name, source, len); }
+
+EMSCRIPTEN_KEEPALIVE
+void loadRaw(const char* name, const void* source, unsigned int len) { WebApi::instance()->loadRaw(name, source, len); }
+
+EMSCRIPTEN_KEEPALIVE
+void newProject() { WebApi::instance()->newProject(); }
 
 EMSCRIPTEN_KEEPALIVE
 void addSoundFont(const char* uri)
@@ -38,4 +44,21 @@ void addSoundFont(const char* uri)
 
 EMSCRIPTEN_KEEPALIVE
 void startAudioProcessing() { WebApi::instance()->startAudioProcessing(); }
+
+EMSCRIPTEN_KEEPALIVE
+void save() { WebApi::instance()->save(); }
+
+EMSCRIPTEN_KEEPALIVE
+void deleteSelection() { WebApi::instance()->deleteSelection(); }
+
+EMSCRIPTEN_KEEPALIVE
+const char* projectTitle()
+{
+    static std::string title;
+    title = WebApi::instance()->projectTitle();
+    return title.c_str();
+}
+
+EMSCRIPTEN_KEEPALIVE
+void serializeAsXml() { WebApi::instance()->serializeAsXml(); }
 }

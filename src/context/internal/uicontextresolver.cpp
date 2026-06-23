@@ -103,10 +103,9 @@ UiContext UiContextResolver::resolveCurrentUiContext() const
 
             INavigationPanel* activePanel = navigationController()->activePanel();
             if (activePanel) {
-                const QString panelName = activePanel->name();
-                if (panelName == NOTATION_NAVIGATION_PANEL) {
+                if (activePanel->name() == NOTATION_NAVIGATION_PANEL) {
                     return context::UiCtxProjectFocused;
-                } else if (panelName == BRAILLE_NAVIGATION_PANEL) {
+                } else if (activePanel->name() == BRAILLE_NAVIGATION_PANEL) {
                     return context::UiCtxBrailleFocused;
                 }
             }

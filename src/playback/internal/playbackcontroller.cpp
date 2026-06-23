@@ -613,6 +613,12 @@ void PlaybackController::onSelectionChanged()
 
 void PlaybackController::togglePlay(bool showErrors)
 {
+    LOGI() << "PlaybackController::togglePlay"
+           << "showErrors:" << showErrors
+           << "allowed:" << isPlayAllowed()
+           << "isPlaying:" << isPlaying()
+           << "isPaused:" << isPaused();
+
     if (!isPlayAllowed()) {
         LOGW() << "playback not allowed";
         return;
@@ -700,6 +706,11 @@ void PlaybackController::play()
         return;
     }
 
+    LOGI() << "PlaybackController::play"
+           << "loopEnabled:" << isLoopEnabled()
+           << "startSecs:" << playbackStartSecs()
+           << "totalPlayTime:" << totalPlayTime();
+
     if (isLoopEnabled()) {
         secs_t startSecs = playbackStartSecs();
         seek(startSecs);
@@ -710,6 +721,8 @@ void PlaybackController::play()
             return;
         }
 
+        LOGI() << "PlaybackController::play prepareToPlay resolved:" << ret.toString();
+
         if (!ret) {
             LOGE() << ret.toString();
         }
@@ -719,6 +732,7 @@ void PlaybackController::play()
             notationPlayback()->triggerCountIn(m_currentTick, delay);
         }
 
+        LOGI() << "PlaybackController::play currentPlayer()->play delay:" << delay;
         currentPlayer()->play(delay);
     });
 }

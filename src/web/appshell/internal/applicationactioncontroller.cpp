@@ -21,6 +21,7 @@
  */
 #include "applicationactioncontroller.h"
 
+#include "actions/actiontypes.h"
 #include "log.h"
 
 using namespace mu::appshell;
@@ -33,4 +34,21 @@ void ApplicationActionController::preInit()
 
 void ApplicationActionController::init()
 {
+    // Forward the global action codes to their notation-scoped equivalents.
+    // On desktop the real ApplicationActionController does this; on web our
+    // stub used to leave them unregistered, so Esc / arrows / Backspace / etc.
+    // were dispatched into the void.
+    auto forward = [this](const ActionCode& from, const ActionCode& to) {
+        dispatcher()->reg(this, from, [this, to](const ActionData& args) {
+            dispatcher()->dispatch(to, args);
+        });
+    };
+
+    forward("action://copy",   "action://notation/copy");
+    forward("action://cut",    "action://notation/cut");
+    forward("action://paste",  "action://notation/paste");
+    forward("action://undo",   "action://notation/undo");
+    forward("action://redo",   "action://notation/redo");
+    forward("action://delete", "action://notation/delete");
+    forward("action://cancel", "action://notation/cancel");
 }

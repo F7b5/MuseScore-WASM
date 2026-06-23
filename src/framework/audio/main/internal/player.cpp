@@ -92,6 +92,7 @@ TrackSequenceId Player::sequenceId() const
 async::Promise<Ret> Player::prepareToPlay()
 {
     ONLY_AUDIO_MAIN_THREAD;
+    LOGI() << "Player::prepareToPlay sequenceId:" << m_sequenceId;
     return async::make_promise<Ret>([this](auto resolve, auto) {
         ONLY_AUDIO_MAIN_THREAD;
         Msg msg = rpc::make_request(Method::PrepareToPlay, RpcPacker::pack(m_sequenceId));
@@ -103,6 +104,7 @@ async::Promise<Ret> Player::prepareToPlay()
                 return;
             }
 
+            LOGI() << "Player::prepareToPlay resolved:" << ret.toString();
             (void)resolve(ret);
         });
         return Promise<Ret>::dummy_result();
@@ -112,6 +114,7 @@ async::Promise<Ret> Player::prepareToPlay()
 void Player::play(const secs_t delay)
 {
     ONLY_AUDIO_MAIN_THREAD;
+    LOGI() << "Player::play sequenceId:" << m_sequenceId << "delay:" << delay;
     Msg msg = rpc::make_request(Method::Play, RpcPacker::pack(m_sequenceId, delay));
     channel()->send(msg);
 }

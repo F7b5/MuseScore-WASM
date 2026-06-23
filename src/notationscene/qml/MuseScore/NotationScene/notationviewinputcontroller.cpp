@@ -1458,6 +1458,15 @@ bool NotationViewInputController::shortcutOverrideEvent(QKeyEvent* event)
         return true;
     }
 
+    // On WASM, Backspace/Delete can be consumed before the shortcut system sees them
+    // unless the notation view explicitly claims them during ShortcutOverride.
+#ifdef Q_OS_WASM
+    const bool deleteShortcutKey = key == Qt::Key_Backspace || key == Qt::Key_Delete;
+    if (deleteShortcutKey) {
+        return true;
+    }
+#endif
+
     return tryPercussionShortcut(event);
 }
 

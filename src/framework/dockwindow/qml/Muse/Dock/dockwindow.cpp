@@ -31,6 +31,8 @@
 
 #include "global/async/async.h"
 
+#include <QTimer>
+
 #include "dockcentralview.h"
 #include "dockpageview.h"
 #include "dockpanelview.h"
@@ -260,6 +262,18 @@ void DockWindow::loadPage(const QString& uri, const QVariantMap& params)
     };
 
     if (isFirstOpening) {
+#ifdef Q_OS_WASM
+        // Async::call's queue doesn't drain reliably on WASM singlethread —
+        // the whole onAppReady / currentUri chain stalls if we defer this.
+        // Use a QTimer (Qt event-loop) instead.
+        QTimer::singleShot(0, this, [this, notifyAboutPageLoaded]() {
+            if (!m_hasGeometryBeenRestored
+                || (m_mainWindow->windowHandle()->windowStates() & Qt::WindowFullScreen)) {
+                m_mainWindow->windowHandle()->showMaximized();
+            }
+            notifyAboutPageLoaded();
+        });
+#else
         async::Async::call(this, [this, notifyAboutPageLoaded]() {
             if (!m_hasGeometryBeenRestored
                 || (m_mainWindow->windowHandle()->windowStates() & Qt::WindowFullScreen)) {
@@ -270,6 +284,7 @@ void DockWindow::loadPage(const QString& uri, const QVariantMap& params)
 
             notifyAboutPageLoaded();
         });
+#endif
     } else {
         notifyAboutPageLoaded();
     }

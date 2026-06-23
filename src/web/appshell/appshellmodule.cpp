@@ -38,11 +38,13 @@
 #include "view/notationpagemodel.h"
 #include "view/notationstatusbarmodel.h"
 #include "view/navigableappmenumodel.h"
+#include "view/midipreferencesmodel.h"
 
 using namespace mu::appshell;
 using namespace muse;
 using namespace muse::modularity;
-using namespace muse::dock;
+
+static const std::string mname("appshell");
 
 static void appshell_init_qrc()
 {
@@ -51,30 +53,22 @@ static void appshell_init_qrc()
 
 std::string AppShellModule::moduleName() const
 {
-    return "appshell";
+    return mname;
 }
 
 void AppShellModule::registerExports()
 {
-    m_applicationActionController = std::make_shared<ApplicationActionController>(globalCtx());
-    m_applicationUiActions = std::make_shared<ApplicationUiActions>(m_applicationActionController, globalCtx());
-    m_appShellConfiguration = std::make_shared<AppShellConfiguration>(globalCtx());
-
+    m_appShellConfiguration = std::make_shared<AppShellConfiguration>();
     globalIoc()->registerExport<IAppShellConfiguration>(moduleName(), m_appShellConfiguration);
-    globalIoc()->registerExport<IStartupScenario>(moduleName(), new StartupScenario(globalCtx()));
 }
 
 void AppShellModule::resolveImports()
 {
-    auto ar = globalIoc()->resolve<ui::IUiActionsRegister>(moduleName());
-    if (ar) {
-        ar->reg(m_applicationUiActions);
-    }
-
     auto ir = globalIoc()->resolve<interactive::IInteractiveUriRegister>(moduleName());
     if (ir) {
         ir->registerPageUri(Uri("musescore://notation"));
         ir->registerPageUri(Uri("musescore://devtools"));
+        // Preferences dialog is opened directly from QML (AppMenuBar.qml)
     }
 }
 
@@ -88,6 +82,7 @@ void AppShellModule::registerUiTypes()
     qmlRegisterType<NavigableAppMenuModel>("MuseScore.AppShell", 1, 0, "AppMenuModel");
     qmlRegisterType<NotationPageModel>("MuseScore.AppShell", 1, 0, "NotationPageModel");
     qmlRegisterType<NotationStatusBarModel>("MuseScore.AppShell", 1, 0, "NotationStatusBarModel");
+    qmlRegisterType<MidiPreferencesModel>("MuseScore.AppShell", 1, 0, "MidiPreferencesModel");
 }
 
 void AppShellModule::onPreInit(const IApplication::RunMode& mode)
@@ -95,8 +90,6 @@ void AppShellModule::onPreInit(const IApplication::RunMode& mode)
     if (mode == IApplication::RunMode::AudioPluginRegistration) {
         return;
     }
-
-    m_applicationActionController->preInit();
 }
 
 void AppShellModule::onInit(const IApplication::RunMode& mode)
@@ -106,8 +99,6 @@ void AppShellModule::onInit(const IApplication::RunMode& mode)
     }
 
     m_appShellConfiguration->init();
-    m_applicationActionController->init();
-    m_applicationUiActions->init();
 }
 
 void AppShellModule::onAllInited(const IApplication::RunMode& mode)
@@ -119,4 +110,41 @@ void AppShellModule::onAllInited(const IApplication::RunMode& mode)
 
 void AppShellModule::onDeinit()
 {
+}
+
+// Context
+IContextSetup* AppShellModule::newContext(const muse::modularity::ContextPtr& ctx) const
+{
+    return new AppShellContext(ctx);
+}
+
+AppShellContext::AppShellContext(const muse::modularity::ContextPtr& ctx)
+    : IContextSetup(ctx)
+{
+}
+
+void AppShellContext::registerExports()
+{
+    m_applicationActionController = std::make_shared<ApplicationActionController>(iocContext());
+    m_applicationUiActions = std::make_shared<ApplicationUiActions>(m_applicationActionController, iocContext());
+
+    ioc()->registerExport<IStartupScenario>(mname, new StartupScenario(iocContext()));
+}
+
+void AppShellContext::resolveImports()
+{
+    auto ar = ioc()->resolve<muse::ui::IUiActionsRegister>(mname);
+    if (ar) {
+        ar->reg(m_applicationUiActions);
+    }
+}
+
+void AppShellContext::onInit(const IApplication::RunMode& mode)
+{
+    if (mode == IApplication::RunMode::AudioPluginRegistration) {
+        return;
+    }
+
+    m_applicationActionController->init();
+    m_applicationUiActions->init();
 }

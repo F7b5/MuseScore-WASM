@@ -25,74 +25,71 @@ import QtQuick.Layouts
 
 import Muse.Ui 1.0
 import Muse.UiComponents
+import Muse.Interactive
+import Muse.Dock
 
 import MuseScore.AppShell 1.0
-import MuseScore.Playback 1.0
 
 AppWindow {
     id: root
 
     flags: Qt.FramelessWindowHint
 
-    InteractiveProvider {
-        id: interactiveProvider
-        topParent: root
+    function revealWindow() {
+        root.opacity = 1.0
+    }
 
-        onRequestedDockPage: function(uri, params) {
-            Qt.callLater(interactiveProvider.onPageOpened)
+    ColumnLayout {
+        anchors.fill: parent
+        spacing: 0
+
+        AppMenuBar {
+            id: appMenuBar
+            Layout.fillWidth: true
+            appWindow: root
+        }
+
+        DockWindow {
+            id: dockWindow
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+
+            onPageLoaded: {
+                interactiveProvider.onPageOpened()
+                root.revealWindow()
+            }
+
+            InteractiveProvider {
+                id: interactiveProvider
+                topParent: root
+
+                onRequestedDockPage: function(uri, params) {
+                    dockWindow.loadPage(uri, params)
+                }
+            }
+
+            NavigationSection {
+                id: topToolbarKeyNavSec
+                name: "TopTool"
+                order: 1
+            }
+
+            pages: [
+                NotationPage {
+                    topToolbarKeyNavSec: topToolbarKeyNavSec
+                }
+            ]
         }
     }
 
-    AppMenuBar {
-        id: appMenuBar
-        anchors.top: parent.top
-        anchors.left: parent.left
-        anchors.right: parent.right
-    }
-
-    Item {
-        id: contentItem
-        anchors.top: appMenuBar.bottom
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-
-        StyledTabBar {
-            id: bar
-            anchors.left: parent.left
-            anchors.margins: 16
-            width: 300
-
-            StyledTabButton {
-                text: "Notation"
-            }
-            StyledTabButton {
-                text: "Dev"
-            }
-        }
-
-        PlaybackToolBar {
-            anchors.left: bar.right
-            anchors.right: parent.right
-            anchors.leftMargin: 16
-        }
-
-        StackLayout {
-            anchors.top: bar.bottom
-            anchors.topMargin: 8
-            anchors.bottom: parent.bottom
-            anchors.left: parent.left
-            anchors.right: parent.right
-            currentIndex: bar.currentIndex
-
-            NotationFrame {
-
-            }
-
-            DevFrame {
-
-            }
-
-        }
+    Component.onCompleted: {
+        dockWindow.init()
+        // Defer until the current event-loop turn finishes so dockWindow.init()
+        // can install its page registrations before the launcher tries to route
+        // to "musescore://notation" — otherwise the URI lookup races init()
+        // and the page doesn't mount on cold start.
+        Qt.callLater(function() {
+            api.launcher.open("musescore://notation")
+        })
     }
 }

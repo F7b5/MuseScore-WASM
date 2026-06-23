@@ -26,6 +26,9 @@
 #include <emscripten/val.h>
 #endif
 
+#include <QBuffer>
+
+#include "global/io/dir.h"
 #include "global/io/file.h"
 
 #include "log.h"
@@ -59,19 +62,33 @@ WebApi* WebApi::instance()
     return &a;
 }
 
-void WebApi::init()
+void WebApi::init(const muse::modularity::ContextPtr& iocCtx)
 {
-    auto onProjectChanged = [this]() {
-        if (m_currentProject) {
-            m_currentProject->saveComplited().resetOnReceive(this);
-        }
+    setContext(iocCtx);
 
+    // load()/loadRaw() write into /mu/temp on the Emscripten MEMFS — the dir
+    // doesn't exist by default, so writeFile would fail silently on a cold start.
+    muse::io::Dir::mkpath("/mu/temp/");
+
+    auto onProjectChanged = [this]() {
         m_currentProject = globalContext()->currentProject();
 
         if (m_currentProject) {
             m_currentProject->saveComplited().onReceive(this, [this](const muse::io::path_t& path, project::SaveMode mode) {
                 onProjectSaved(path, mode);
             });
+
+            m_currentProject->needSave().notification.onNotify(this, [this]() {
+                onNeedSaveChanged();
+            });
+
+            m_currentProject->displayNameChanged().onNotify(this, [this]() {
+                onProjectTitleChanged();
+            });
+
+            // Notify immediately so the JS layer gets the title as soon as
+            // the project is opened (including after the new-score wizard).
+            onProjectTitleChanged();
         }
     };
 
@@ -82,24 +99,40 @@ void WebApi::init()
 
 void WebApi::deinit()
 {
-    if (m_currentProject) {
-        m_currentProject->saveComplited().resetOnReceive(this);
-    }
 }
 
-void WebApi::load(const void* source, unsigned int len)
+void WebApi::load(const char* name, const void* source, unsigned int len)
 {
-    LOGI() << source << ", len: " << len;
+    LOGI() << "name: " << (name ? name : "<null>") << ", len: " << len;
     ByteArray data = ByteArray::fromRawData(reinterpret_cast<const char*>(source), len);
-    io::path_t tempFilePath = "/mu/temp/current.mscz";
 
-    //! NOTE Remove last previous
+    // Fixed path — the display name comes from the score metadata, not the
+    // on-disk filename, so there's no reason to round-trip the caller's name
+    // through the MEMFS. Avoids any escaping / collision concerns.
+    const io::path_t tempFilePath = "/mu/temp/score.mscz";
+
     io::File::remove(tempFilePath);
-
-    //! NOTE Write new project
     io::File::writeFile(tempFilePath, data);
 
     dispatcher()->dispatch("file-open", actions::ActionData::make_arg1(QUrl::fromLocalFile(tempFilePath.toQString())));
+}
+
+void WebApi::loadRaw(const char* name, const void* source, unsigned int len)
+{
+    LOGI() << "loadRaw name: " << (name ? name : "<null>") << ", len: " << len;
+    ByteArray data = ByteArray::fromRawData(reinterpret_cast<const char*>(source), len);
+
+    const io::path_t tempFilePath = "/mu/temp/score.mscx";
+
+    io::File::remove(tempFilePath);
+    io::File::writeFile(tempFilePath, data);
+
+    dispatcher()->dispatch("file-open", actions::ActionData::make_arg1(QUrl::fromLocalFile(tempFilePath.toQString())));
+}
+
+void WebApi::newProject()
+{
+    dispatcher()->dispatch("file-new");
 }
 
 void WebApi::addSoundFont(const std::string& uri)
@@ -112,19 +145,118 @@ void WebApi::startAudioProcessing()
     startAudioController()->startAudioProcessing(IApplication::RunMode::GuiApp);
 }
 
-void WebApi::onProjectSaved(const muse::io::path_t& path, mu::project::SaveMode)
+void WebApi::save()
 {
-    IF_ASSERT_FAILED(io::File::exists(path)) {
-        LOGE() << "file does not exist, path: " << path;
+    dispatcher()->dispatch("file-save");
+}
+
+void WebApi::deleteSelection()
+{
+    // action://delete is registered by the desktop ApplicationActionController
+    // which is a stub on web — dispatch the notation-scoped action directly.
+    dispatcher()->dispatch("action://notation/delete");
+}
+
+std::string WebApi::projectTitle() const
+{
+    if (!m_currentProject) {
+        return {};
+    }
+
+    const QString title = m_currentProject->metaInfo().title.trimmed();
+    if (!title.isEmpty()) {
+        return title.toStdString();
+    }
+
+    return m_currentProject->displayName().toStdString();
+}
+
+void WebApi::onProjectSaved(const muse::io::path_t& path, mu::project::SaveMode mode)
+{
+    (void)path;
+
+    if (m_isSerializingProject || mode == project::SaveMode::SaveCopy) {
+        return;
+    }
+
+    emitSavedProject("onSave");
+}
+
+void WebApi::onNeedSaveChanged()
+{
+    if (!m_currentProject) {
+        return;
+    }
+
+    bool needSave = m_currentProject->needSave().val;
+
+#ifdef Q_OS_WASM
+    emscripten::val::module_property("onNeedSave")(needSave);
+#endif
+}
+
+void WebApi::onProjectTitleChanged()
+{
+    std::string title = projectTitle();
+
+#ifdef Q_OS_WASM
+    emscripten::val::module_property("onTitleChanged")(title);
+#endif
+}
+
+void WebApi::emitSavedProject(const char* callbackName)
+{
+    if (!m_currentProject) {
+        LOGE() << "No current project to save";
+        return;
+    }
+
+    QBuffer savedProject;
+    savedProject.open(QIODevice::WriteOnly);
+
+    Ret ret = m_currentProject->writeToDevice(&savedProject);
+    if (!ret) {
+        LOGE() << "Failed to save project to memory: " << ret.toString();
+        return;
+    }
+
+    QByteArray data = savedProject.data();
+    callJsWithBytes(callbackName,
+                    reinterpret_cast<const uint8_t*>(data.constData()),
+                    static_cast<size_t>(data.size()));
+}
+
+void WebApi::emitSerializedProject(const char* callbackName)
+{
+    if (!m_currentProject) {
+        LOGE() << "No current project to serialize";
+        return;
+    }
+
+    io::path_t tempPath = "/mu/temp/autosave.mscs";
+    io::File::remove(tempPath);
+
+    m_isSerializingProject = true;
+    Ret ret = m_currentProject->save(tempPath, project::SaveMode::SaveCopy, false);
+    m_isSerializingProject = false;
+    if (!ret) {
+        LOGE() << "Failed to serialize project as XML: " << ret.toString();
         return;
     }
 
     ByteArray data;
-    Ret ret  = io::File::readFile(path, data);
+    ret = io::File::readFile(tempPath, data);
+    io::File::remove(tempPath);
+
     if (!ret) {
-        LOGE() << "failed read file, path: " << path;
+        LOGE() << "Failed to read serialized XML";
         return;
     }
 
-    callJsWithBytes("onProjectSaved", data.constData(), data.size());
+    callJsWithBytes(callbackName, data.constData(), data.size());
+}
+
+void WebApi::serializeAsXml()
+{
+    emitSerializedProject("onSaveRaw");
 }

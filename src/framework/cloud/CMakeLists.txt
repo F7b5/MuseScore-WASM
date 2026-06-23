@@ -48,7 +48,11 @@ if (MUSE_MODULE_CLOUD_MUSESCORECOM)
     target_compile_definitions(muse_cloud PUBLIC MUSE_MODULE_CLOUD_MUSESCORECOM)
 endif()
 
-target_link_libraries(muse_cloud PRIVATE Qt::Network Qt::NetworkAuth)
+if (OS_IS_WASM)
+    target_link_libraries(muse_cloud PRIVATE Qt::Network)
+else()
+    target_link_libraries(muse_cloud PRIVATE Qt::Network Qt::NetworkAuth)
+endif()
 
 if (MUSE_MODULE_CLOUD_QML)
     add_subdirectory(qml/Muse/Cloud)

@@ -62,10 +62,6 @@ void AppMenuModel::load()
         makeToolsMenu()
     };
 
-    if (globalConfiguration()->devModeEnabled()) {
-        items << makeDiagnosticsMenu();
-    }
-
     setItems(items);
 
     setupConnections();
@@ -114,7 +110,12 @@ MenuItem* AppMenuModel::makeMenuItem(const ActionCode& actionCode, MenuItemRole 
 muse::uicomponents::MenuItem* AppMenuModel::makeFileMenu()
 {
     MenuItemList fileItems {
-        makeMenuItem("file-save")
+        makeMenuItem("file-save"),
+        makeMenuItem("project-properties"),
+        makeSeparator(),
+        makeMenuItem("parts", TranslatableString("action", "Parts…")),
+        makeSeparator(),
+        makeMenuItem("preference-dialog")
     };
 
     return makeMenu(TranslatableString("appshell/menu/file", "&File"), fileItems, "menu-file");
@@ -181,6 +182,7 @@ MenuItem* AppMenuModel::makeViewMenu()
         makeMenuItem("toggle-navigator"),
         makeMenuItem("toggle-braille-panel"),
         makeMenuItem("toggle-timeline"),
+        makeMenuItem("toggle-mixer"),
         makeMenuItem("toggle-piano-keyboard"),
         makeMenuItem("toggle-percussion-panel"),
         makeSeparator(),

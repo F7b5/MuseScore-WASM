@@ -33,6 +33,9 @@
 #elif defined(Q_OS_MACOS)
 #include "internal/platform/osx/coremidioutport.h"
 #include "internal/platform/osx/coremidiinport.h"
+#elif defined(__EMSCRIPTEN__)
+#include "internal/platform/web/webmidioutport.h"
+#include "internal/platform/web/webmidiinport.h"
 #else
 #include "internal/dummymidioutport.h"
 #include "internal/dummymidiinport.h"
@@ -58,6 +61,9 @@ void MidiModule::registerExports()
     #elif defined(Q_OS_MACOS)
     m_midiOutPort = std::make_shared<CoreMidiOutPort>();
     m_midiInPort = std::make_shared<CoreMidiInPort>();
+    #elif defined(__EMSCRIPTEN__)
+    m_midiOutPort = std::make_shared<WebMidiOutPort>();
+    m_midiInPort = std::make_shared<WebMidiInPort>();
     #else
     m_midiOutPort = std::make_shared<DummyMidiOutPort>();
     m_midiInPort = std::make_shared<DummyMidiInPort>();

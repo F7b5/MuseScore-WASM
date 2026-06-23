@@ -29,4 +29,6 @@ target_sources(print PRIVATE
     internal/printprovider.h
 )
 
-target_link_libraries(print PRIVATE Qt::PrintSupport)
+if (NOT OS_IS_WASM)
+    target_link_libraries(print PRIVATE Qt::PrintSupport)
+endif()

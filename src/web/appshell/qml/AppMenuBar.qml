@@ -30,7 +30,7 @@ Item {
 
     property alias appWindow: appMenuModel.appWindow
 
-    property int availableWidth: 0
+    property int availableWidth: width
     property bool truncated: availableWidth < contentRow.childrenRect.width
 
     implicitWidth: contentRow.width
@@ -60,6 +60,7 @@ Item {
     }
 
     Component.onCompleted: {
+        console.info("WebAppMenuBar: loading menu model, width=", width, "availableWidth=", availableWidth)
         appMenuModel.load()
     }
 
@@ -72,15 +73,14 @@ Item {
             delegate: FlatButton {
                 id: radioButtonDelegate
 
-                property var item: Boolean(model) ? model.itemRole : null
+                required property MenuItem item
+                required property int index
+
                 property string menuId: Boolean(item) ? item.id : ""
                 property string title: Boolean(item) ? item.title : ""
                 property string titleWithMnemonicUnderline: Boolean(item) ? item.titleWithMnemonicUnderline : ""
-
                 property bool isMenuOpened: menuLoader.isMenuOpened && menuLoader.parent === this
                 property bool highlight: appMenuModel.highlightedMenuId === menuId
-
-                property int viewIndex: index
 
                 buttonType: FlatButton.TextOnly
                 isNarrow: true
@@ -126,16 +126,15 @@ Item {
                 contentItem: StyledTextLabel {
                     id: textLabel
 
-                    width: textMetrics.width
-
                     text: appMenuModel.isNavigationStarted ? radioButtonDelegate.titleWithMnemonicUnderline : radioButtonDelegate.title
                     textFormat: Text.RichText
                     font: ui.theme.defaultFont
+                }
 
-            text: appMenuModel.isNavigationStarted ? radioButtonDelegate.titleWithMnemonicUnderline : radioButtonDelegate.title
-            textFormat: Text.RichText
-            font: ui.theme.defaultFont
-        }
+                backgroundItem: AppButtonBackground {
+                    mouseArea: radioButtonDelegate.mouseArea
+
+                    highlight: radioButtonDelegate.highlight
 
                     color: radioButtonDelegate.normalColor
                 }
@@ -157,6 +156,10 @@ Item {
         }
     }
 
+    MidiPreferencesDialog {
+        id: midiPrefsDialog
+    }
+
     StyledMenuLoader {
         id: menuLoader
 
@@ -164,6 +167,10 @@ Item {
         property bool hasSiblingMenus: true
 
         onHandleMenuItem: function(itemId) {
+            if (itemId === "preference-dialog") {
+                midiPrefsDialog.open()
+                return
+            }
             Qt.callLater(appMenuModel.handleMenuItem, itemId)
         }
 
@@ -227,4 +234,3 @@ Item {
         }
     }
 }
-

@@ -148,10 +148,12 @@ Item {
             }
 
             function handleMenuItem() {
+                console.log("[noteinputbar.qml] handleMenuItem id=\"" + item.id + "\"")
                 Qt.callLater(noteInputModel.handleMenuItem, item.id)
             }
 
             onClicked: {
+                console.log("[noteinputbar.qml] onClicked id=\"" + (item ? item.id : "(null)") + "\" hasMenu=" + btn.hasMenu)
                 if (btn.hasMenu) {
                     toggleMenuOpened()
                 } else {

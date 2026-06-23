@@ -30,10 +30,19 @@ public:
 
     std::string moduleName() const override;
 
-    void onInit(const muse::IApplication::RunMode& mode) override;
-    void onDeinit() override;
     void onStartApp() override;
 
+    muse::modularity::IContextSetup* newContext(const muse::modularity::ContextPtr& ctx) const override;
+
 private:
+};
+
+class AppJsContext : public muse::modularity::IContextSetup
+{
+public:
+    AppJsContext(const muse::modularity::ContextPtr& ctx);
+
+    void onInit(const muse::IApplication::RunMode& mode) override;
+    void onDeinit() override;
 };
 }

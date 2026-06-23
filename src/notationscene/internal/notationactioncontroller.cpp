@@ -581,7 +581,6 @@ void NotationActionController::init()
 
 bool NotationActionController::canReceiveAction(const ActionCode& code) const
 {
-    // If no notation is loaded, we cannot handle any action.
     auto masterNotation = currentMasterNotation();
     if (!masterNotation) {
         return false;
@@ -601,16 +600,13 @@ bool NotationActionController::canReceiveAction(const ActionCode& code) const
         return canRedo();
     }
 
-    // Actions other than undo and redo can only be handled when the current
-    // notation contains at least one part.
     if (!masterNotation->hasParts()) {
         return false;
     }
 
     auto iter = m_isEnabledMap.find(code);
     if (iter != m_isEnabledMap.end()) {
-        bool enabled = iter->second();
-        return enabled;
+        return iter->second();
     }
 
     return true;
@@ -772,6 +768,13 @@ void NotationActionController::toggleNoteInputMethod(NoteInputMethod method)
     INotationNoteInputPtr noteInput = currentNotationNoteInput();
     if (!noteInput) {
         return;
+    }
+
+    // A toolbar click while a text frame is being edited should end the edit
+    // first, then switch — not silently do nothing.
+    auto interaction = currentNotationInteraction();
+    if (interaction && interaction->isEditingElement()) {
+        interaction->endEditElement();
     }
 
     if (!noteInput->isNoteInputMode()) {
@@ -2244,13 +2247,21 @@ bool NotationActionController::toggleNoteInputAllowed() const
         return false;
     }
 
+    const UiContext& ctx = uiContextResolver()->currentUiContext();
+    const INavigationControl* ctrl = navigationController()->activeControl();
+
+#ifdef Q_OS_WASM
+    // On web there is no real focus model — accept the toolbar click as long
+    // as a notation is loaded, even if the notation view isn't focused.
+    if (globalContext()->currentNotation() && ctx == ui::UiCtxProjectOpened) {
+        return true;
+    }
+#endif
+
     //! NOTE: We're more strict about starting note input mode than exiting it.
     if (!isNoteInputMode() && isEditingElement()) {
         return false;
     }
-
-    const UiContext& ctx = uiContextResolver()->currentUiContext();
-    const INavigationControl* ctrl = navigationController()->activeControl();
 
     return ctx == ui::UiCtxProjectFocused
            || ctx == ui::UiCtxBrailleFocused

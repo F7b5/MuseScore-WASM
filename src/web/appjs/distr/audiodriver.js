@@ -32,8 +32,8 @@ let AudioDriver = (function () {
             try {
 
                 const code = await URLFromFiles([
-                    './MuseAudio.js',
-                    './distr/audio_worklet_processor.js'
+                    '/wasm/MuseAudio.js',
+                    '/wasm/distr/audio_worklet_processor.js'
                 ]);
 
                 await audioContext.audioWorklet.addModule(code)
@@ -50,9 +50,14 @@ let AudioDriver = (function () {
 
             // driver (processor) -> main
             processor.port.onmessage = function(event) {
-                console.log("[processor]", event.data)
-
-                if (event.data.type == "DRIVER_INITED") {
+                if (event.data.type == "debug") {
+                    // suppress noisy debug messages
+                } else if (event.data.type == "midi_out") {
+                    // Relay MIDI from AudioWorklet to Web MIDI API
+                    if (api.onMidiOut) {
+                        api.onMidiOut(event.data.byte0, event.data.byte1, event.data.byte2, event.data.count);
+                    }
+                } else if (event.data.type == "DRIVER_INITED") {
                     api.inited = true;
                     if (api.onInited) {
                         api.onInited();
@@ -71,7 +76,9 @@ let AudioDriver = (function () {
         outputSpec: function() {
             return {
                 sampleRate: audioContext.sampleRate,
-                samplesPerChannel: Math.max(Math.round(audioContext.baseLatency * audioContext.sampleRate), 128),
+                // AudioWorklet render quanta are fixed-size blocks. The engine
+                // must be initialized with the same block size it will be asked to render.
+                samplesPerChannel: 128,
                 audioChannelCount: audioContext.destination.channelCount
             }
         },

@@ -375,7 +375,7 @@ MenuView {
                 var separatorCount = 0
                 for (let i = 0; i < model.length; i++) {
                     let item = Boolean(model.get) ? model.get(i).item : model[i]
-                    if (!Boolean(item.title)) {
+                    if (!item || !Boolean(item.title)) {
                         separatorCount++
                     }
                 }

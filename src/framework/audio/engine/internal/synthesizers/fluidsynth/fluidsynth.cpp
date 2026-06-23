@@ -23,6 +23,10 @@
 #include "fluidsynth.h"
 
 #include <fluidsynth.h>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#include <emscripten/val.h>
+#endif
 
 #include "audio/common/audioerrors.h"
 #include "audio/common/audiotypes.h"
@@ -242,19 +246,50 @@ bool FluidSynth::handleEvent(const midi::Event& event)
     }
     }
 
-    if (m_midiOutPort) {
+    {
+        midi::Event eventToSend = event;
         if (STAFF_TO_MIDIOUT_CHANNEL && event.isChannelVoice()) {
             int staff = m_sequencer.lastStaff();
             if (staff >= 0) {
-                int channel = staff % 16;
-                midi::Event me(event);
-                me.setChannel(channel);
-                m_midiOutPort->sendEvent(me);
+                eventToSend.setChannel(staff % 16);
+            } else {
+                goto skip_midi_out;
             }
-        } else {
-            m_midiOutPort->sendEvent(event);
         }
+
+        if (m_midiOutPort) {
+            m_midiOutPort->sendEvent(eventToSend);
+        }
+#ifdef __EMSCRIPTEN__
+        else {
+            // Direct JS bridge for AudioWorklet context where IMidiOutPort is unavailable
+            midi::Event e1 = eventToSend;
+            if (e1.messageType() == midi::Event::MessageType::ChannelVoice20) {
+                auto events10 = e1.toMIDI10();
+                for (const auto& ev : events10) {
+                    unsigned char bytes[3];
+                    size_t cnt = ev.toMidi10Bytes(bytes);
+                    if (cnt > 0) {
+                        emscripten::val sendFn = emscripten::val::global("sendMidiToMain");
+                        if (!sendFn.isUndefined()) {
+                            sendFn((int)bytes[0], cnt > 1 ? (int)bytes[1] : 0, cnt > 2 ? (int)bytes[2] : 0, (int)cnt);
+                        }
+                    }
+                }
+            } else if (e1.messageType() == midi::Event::MessageType::ChannelVoice10) {
+                unsigned char bytes[3];
+                size_t cnt = e1.toMidi10Bytes(bytes);
+                if (cnt > 0) {
+                    emscripten::val sendFn = emscripten::val::global("sendMidiToMain");
+                    if (!sendFn.isUndefined()) {
+                        sendFn((int)bytes[0], cnt > 1 ? (int)bytes[1] : 0, cnt > 2 ? (int)bytes[2] : 0, (int)cnt);
+                    }
+                }
+            }
+        }
+#endif
     }
+skip_midi_out:
 
     return ret == FLUID_OK;
 }

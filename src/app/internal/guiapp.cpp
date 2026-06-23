@@ -1,5 +1,7 @@
 #include "guiapp.h"
 
+#include <typeinfo>
+
 #include <QApplication>
 #include <QDir>
 #include <QQmlApplicationEngine>
@@ -14,7 +16,9 @@
 #include "appshell/internal/istartupscenario.h"
 
 #include "global/async/processevents.h"
+#ifdef MUE_ENABLE_CONSOLEAPP
 #include "commandlineparser.h"
+#endif
 
 #include "muse_framework_config.h"
 #include "app_config.h"
@@ -184,6 +188,14 @@ void GuiApp::setup()
     {
         GraphicsApiProvider* gApiProvider = new GraphicsApiProvider(BaseApplication::appVersion());
 
+#ifdef Q_OS_WASM
+        const GraphicsApi required = GraphicsApi::Software;
+        LOGI() << "Setting required graphics api: " << GraphicsApiProvider::apiName(required);
+        GraphicsApiProvider::setGraphicsApi(required);
+        LOGI() << "Using graphics api: " << GraphicsApiProvider::graphicsApiName();
+        LOGI() << "Gui platform: " << QGuiApplication::platformName();
+        gApiProvider->destroy();
+#else
         GraphicsApi required = gApiProvider->requiredGraphicsApi();
         if (required != GraphicsApi::Default) {
             LOGI() << "Setting required graphics api: " << GraphicsApiProvider::apiName(required);
@@ -211,6 +223,7 @@ void GuiApp::setup()
                 gApiProvider->destroy();
             });
         }
+#endif
     }
 }
 
@@ -287,6 +300,7 @@ muse::modularity::ContextPtr GuiApp::setupNewContext(const StringList& args)
 
     LOGI() << "Creating new context with id: " << ctxId->id;
 
+#ifdef MUE_ENABLE_CONSOLEAPP
     if (args.size() > 0) {
         std::vector<std::string> args_ = args.toStdStringList();
         const int argc = static_cast<int>(args_.size());
@@ -303,6 +317,9 @@ muse::modularity::ContextPtr GuiApp::setupNewContext(const StringList& args)
     } else {
         ctx.options = m_appOptions;
     }
+#else
+    ctx.options = m_appOptions;
+#endif
 
     QMetaObject::invokeMethod(qApp, [this, ctxId]() {
         showContextSplash(ctxId);
@@ -329,22 +346,27 @@ void GuiApp::setupContext(const muse::modularity::ContextPtr& ctxId)
     std::vector<muse::modularity::IContextSetup*>& csetups = context(ctxId).setups;
 
     for (modularity::IContextSetup* s : csetups) {
+        LOGI() << "Context setup registerExports:" << typeid(*s).name();
         s->registerExports();
     }
 
     for (modularity::IContextSetup* s : csetups) {
+        LOGI() << "Context setup resolveImports:" << typeid(*s).name();
         s->resolveImports();
     }
 
     for (modularity::IContextSetup* s : csetups) {
+        LOGI() << "Context setup onPreInit:" << typeid(*s).name();
         s->onPreInit(runMode);
     }
 
     for (modularity::IContextSetup* s : csetups) {
+        LOGI() << "Context setup onInit:" << typeid(*s).name();
         s->onInit(runMode);
     }
 
     for (modularity::IContextSetup* s : csetups) {
+        LOGI() << "Context setup onAllInited:" << typeid(*s).name();
         s->onAllInited(runMode);
     }
 }
@@ -371,7 +393,18 @@ bool GuiApp::loadMainWindow(const muse::modularity::ContextPtr& ctxId)
         });
     }, Qt::DirectConnection);
 
+#if defined(Q_OS_WASM)
+    QString path = "qrc:/qml/Main.qml";
+#else
+#if defined(Q_OS_MAC)
+    QString platform = "mac";
+#elif defined(Q_OS_WIN)
+    QString platform = "win";
+#else
+    QString platform = "linux";
+#endif
     QString path = QString(":/qt/qml/MuseScore/AppShell/platform/%1/Main.qml").arg(platform);
+#endif
     QQmlComponent component = QQmlComponent(engine, path);
     if (!component.isReady()) {
         LOGE() << "Failed to load main qml file, err: " << component.errorString();

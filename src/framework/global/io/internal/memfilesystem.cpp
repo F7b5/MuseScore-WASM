@@ -21,6 +21,8 @@
  */
 #include "memfilesystem.h"
 
+#include <QDir>
+#include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
 
@@ -42,9 +44,13 @@ muse::Ret MemFileSystem::exists(const muse::io::path_t& path) const
 {
     if (isRC(path)) {
         return QFile::exists(path.toQString());
-    } else {
-        return muse::contains(m_files, path);
     }
+    if (muse::contains(m_files, path)) {
+        return true;
+    }
+    // Fall through to MEMFS: locale .qm files / languages.json are injected
+    // by the JS preRun via FS.writeFile and live there, not in m_files.
+    return QFile::exists(path.toQString());
 }
 
 muse::Ret MemFileSystem::remove(const muse::io::path_t& path, bool onlyIfEmpty)
@@ -106,10 +112,15 @@ muse::Ret MemFileSystem::move(const muse::io::path_t& src, const muse::io::path_
     return muse::make_ok();
 }
 
-muse::Ret MemFileSystem::makePath(const muse::io::path_t& /*path*/) const
+muse::Ret MemFileSystem::makePath(const muse::io::path_t& path) const
 {
-    NOT_IMPLEMENTED;
-    return muse::make_ret(muse::Ret::Code::NotImplemented);
+    // Create the directory in MEMFS so writes (e.g. user locale overrides at
+    // /files/data/locale/) can land there. QDir::mkpath is a no-op if it
+    // already exists.
+    if (QDir().mkpath(path.toQString())) {
+        return muse::make_ok();
+    }
+    return muse::make_ret(muse::Ret::Code::UnknownError);
 }
 
 muse::Ret MemFileSystem::makeLink(const muse::io::path_t& /*targetPath*/, const muse::io::path_t& /*linkPath*/) const
@@ -140,11 +151,46 @@ muse::RetVal<uint64_t> MemFileSystem::fileSize(const muse::io::path_t& path) con
     }
 }
 
-muse::RetVal<muse::io::paths_t> MemFileSystem::scanFiles(const muse::io::path_t& /*rootDir*/, const std::vector<std::string>& /*filters*/,
-                                                         muse::io::ScanMode /*mode*/) const
+muse::RetVal<muse::io::paths_t> MemFileSystem::scanFiles(const muse::io::path_t& rootDir, const std::vector<std::string>& filters,
+                                                         muse::io::ScanMode mode) const
 {
-    NOT_IMPLEMENTED;
-    return muse::make_ret(muse::Ret::Code::NotImplemented);
+    // MEMFS-backed scan via QDirIterator — needed for LanguagesService which
+    // enumerates *_<code>.qm under /files/share/locale/ at startup.
+    muse::RetVal<muse::io::paths_t> result;
+    muse::Ret ret = exists(rootDir);
+    if (!ret) {
+        result.ret = ret;
+        return result;
+    }
+
+    QDirIterator::IteratorFlags flags = QDirIterator::NoIteratorFlags;
+    QDir::Filters dirFilters = QDir::NoDotAndDotDot | QDir::Readable;
+
+    switch (mode) {
+    case muse::io::ScanMode::FilesInCurrentDir:
+        dirFilters |= QDir::Files;
+        break;
+    case muse::io::ScanMode::FilesAndFoldersInCurrentDir:
+        dirFilters |= QDir::Files | QDir::Dirs;
+        break;
+    case muse::io::ScanMode::FilesInCurrentDirAndSubdirs:
+        flags |= QDirIterator::Subdirectories;
+        dirFilters |= QDir::Files;
+        break;
+    }
+
+    QStringList qnameFilters;
+    for (const std::string& f : filters) {
+        qnameFilters << QString::fromStdString(f);
+    }
+
+    QDirIterator it(rootDir.toQString(), qnameFilters, dirFilters, flags);
+    while (it.hasNext()) {
+        result.val.push_back(it.next());
+    }
+
+    result.ret = muse::make_ok();
+    return result;
 }
 
 void MemFileSystem::setAttribute(const muse::io::path_t& /*path*/, Attribute /*attribute*/) const
@@ -178,8 +224,17 @@ muse::Ret MemFileSystem::readFile(const muse::io::path_t& path, muse::ByteArray&
         qint64 size = file.size();
         data.resize(static_cast<size_t>(size));
         file.read(reinterpret_cast<char*>(data.data()), size);
-    } else {
+    } else if (muse::contains(m_files, path)) {
         data = m_files.at(path);
+    } else {
+        // MEMFS-backed (e.g. locale assets injected by the JS preRun).
+        QFile file(path.toQString());
+        if (!file.open(QIODevice::ReadOnly)) {
+            return muse::make_ret(muse::Ret::Code::UnknownError);
+        }
+        qint64 size = file.size();
+        data.resize(static_cast<size_t>(size));
+        file.read(reinterpret_cast<char*>(data.data()), size);
     }
 
     return muse::make_ok();

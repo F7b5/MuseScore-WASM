@@ -304,6 +304,14 @@ if (CC_IS_EMCC)
     include(exported_functions.cmake)
     target_link_options(MuseScoreStudio PRIVATE ${EMCC_LINKER_FLAGS})
     target_link_options(MuseScoreStudio PRIVATE ${EXPORTED_FUNCTIONS})
+    target_link_options(MuseScoreStudio PRIVATE "SHELL:-s ASSERTIONS=2")
+
+    # muimpl.js preRun uses addRunDependency/removeRunDependency to block
+    # main() until the locale .qm files land in MEMFS. Qt's base export set
+    # doesn't include them, so add via QT_WASM_EXTRA_EXPORTED_METHODS.
+    set_target_properties(MuseScoreStudio PROPERTIES
+        QT_WASM_EXTRA_EXPORTED_METHODS "ENV,FS,HEAPU8,ccall,cwrap,UTF8ToString,addRunDependency,removeRunDependency"
+    )
 endif()
 
 
@@ -424,7 +432,7 @@ elseif(OS_IS_WASM)
     add_custom_command(
         TARGET MuseScoreStudio
         POST_BUILD
-        COMMAND node ${PROJECT_SOURCE_DIR}/src/web/appjs/install.js ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+        COMMAND node ${PROJECT_SOURCE_DIR}/src/web/appjs/install.js ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} ${CMAKE_BINARY_DIR}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         COMMENT "Install js api..."
     )
